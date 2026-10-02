@@ -132,6 +132,30 @@ export type AuditEvent = {
   data: Record<string, unknown>;           // technical details behind progressive disclosure
 };
 
+/**
+ * MandateInterpretationInput — what the frontend sends to the LLM module.
+ *
+ * The LLM module needs exactly two things from the user:
+ *   - instruction : the natural-language request
+ *   - priceLimit  : the acceptable per-purchase price (becomes maxPerTransaction)
+ *
+ * The user's current values live in `App.tsx` state:
+ *   - `instruction` (the Screen 1 textarea)
+ *   - `mandate.maxPerTransaction` (the "Maximum per purchase" field)
+ * and are bundled into this shape by the `activateMandate()` handler when the
+ * "Activate mandate" button is clicked. See BACKEND_INTEGRATION.md §4.
+ *
+ * Backend example (JSON sent in the request body):
+ * {
+ *   "instruction": "Buy me a quiet wireless mouse under HK$300",
+ *   "priceLimit": 300
+ * }
+ */
+export type MandateInterpretationInput = {
+  instruction: string;
+  priceLimit?: number;
+};
+
 /** The five pre-prepared judge scenarios available in the Demo Mode bar. */
 export type ScenarioId = 'allowed' | 'over_budget' | 'expired' | 'revocation' | 'malicious';
 

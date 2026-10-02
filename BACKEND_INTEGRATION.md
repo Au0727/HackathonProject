@@ -41,7 +41,7 @@ A ready-to-fill scaffold already exists at **`src/services/httpGateway.ts`**.
 | Gateway method | Suggested endpoint | Request body | Response body |
 |---|---|---|---|
 | `getCatalog()` | `GET /api/catalog` | — | `Product[]` |
-| `interpretMandate(instruction)` | `POST /api/mandates/interpret` | `{ "instruction": string }` | `Mandate` |
+| `interpretMandate(input)` | `POST /api/mandates/interpret` | `{ "instruction": string, "priceLimit": number }` | `Mandate` |
 | `authorize(mandate, transaction)` | `POST /api/authorization/evaluate` | `{ "mandate": Mandate, "transaction": Transaction }` | `AuthorizationResult` |
 | `startPayment(transaction)` | `POST /api/transactions/:id/payment/start` | `Transaction` | `Transaction` (`status: "PAYMENT_PENDING"`) |
 | `completePayment(transaction, mandate)` | `POST /api/transactions/:id/payment/complete` | `Transaction` | `Transaction` (`COMPLETED` or `CANCELLED`) |
@@ -189,41 +189,61 @@ async getCatalog() {
 
 The LLM's job is **interpretation only**. It converts free text into a `Mandate`. It never authorizes money.
 
-### Flow
+### The exact data sent on button click
+
+The LLM module needs exactly two things from the user. Both live in `App.tsx` state on **Screen 1**:
+
+- `instruction` — the text from the natural-language textarea
+- `priceLimit` — the "Maximum per purchase" number field
+
+When the user clicks **"Activate mandate"**, the `activateMandate()` handler bundles them into a `MandateInterpretationInput` and sends it through the gateway. **This is now wired and working** in the prototype (it uses the local stand-in parser; the HTTP path is identical).
+
+```ts
+// src/App.tsx — runs when "Activate mandate" is clicked
+const activateMandate = async () => {
+  setBusy(true);
+  setInterpretError(null);
+  try {
+    const parsed = await commerceGateway.interpretMandate({
+      instruction,                          // from the textarea
+      priceLimit: mandate.maxPerTransaction // from the price field
+    });
+    setMandate(parsed);          // the returned structured mandate fills the policy card
+    appendAudit('MANDATE_INTERPRETED', 'AGENT', 'The agent interpreted your instruction into a spending mandate.', { input, mandate: parsed });
+    setStep('shop');             // advance to the agent workspace
+  } catch (err) {
+    setInterpretError('The agent could not interpret that instruction. Please try rephrasing it.');
+  } finally {
+    setBusy(false);
+  }
+};
+```
+
+### Request / response
 
 ```
-User types: "Buy me a mouse under HK$300, only approved merchants"
+User types instruction + price limit, clicks "Activate mandate"
         │
         ▼
-POST /api/mandates/interpret   { "instruction": "..." }
-        │   (your server calls the LLM with a tool/JSON schema
-        │    constrained to the Mandate type, then validates the output)
+POST /api/mandates/interpret
+  body: { "instruction": "Buy me a mouse under HK$300", "priceLimit": 300 }
+        │   (your server calls the LLM with a tool/JSON schema constrained
+        │    to the Mandate type, then validates the output)
         ▼
 Returns a validated Mandate object
         │
         ▼
-Frontend stores it and shows the editable structured policy
+Frontend stores it (setMandate) and shows the structured policy
 ```
 
-### Wiring it in the UI
+### Two interchangeable implementations (same interface)
 
-The textarea in **Screen 1 (`MandateSetup`)** already holds the text in `instruction` state. The handler is `activateMandate()` in `App.tsx` — a `[BACKEND-SEND]` site. Replace the current ("use the scenario's pre-parsed mandate") logic with:
+The gateway interface is `interpretMandate(input: MandateInterpretationInput): Promise<Mandate>`. Two adapters implement it:
 
-```ts
-const activateMandate = async () => {
-  setBusy(true);
-  try {
-    const parsed = await commerceGateway.interpretMandate(instruction);
-    setMandate(parsed);                         // show the structured policy
-    appendAudit('MANDATE_INTERPRETED', 'AGENT', 'Agent interpreted your instruction into a spending mandate.', { parsed, instruction });
-  } catch (err) {
-    // show a friendly error, keep the user's text
-  } finally {
-    setBusy(false);
-    setStep('shop');
-  }
-};
-```
+- **Today (offline demo):** `MockCommerceGateway.interpretMandate` → `interpretMandateLocally(input, scenario.mandate)` in `src/services/mockGateway.ts`. A deterministic regex parser that extracts the price and maps keywords to categories, seeded with the active scenario's defaults (expiry, allowed merchants).
+- **Production:** `HttpCommerceGateway.interpretMandate` in `src/services/httpGateway.ts` → `POST /api/mandates/interpret`. Just point it at your LLM endpoint.
+
+Switch by changing the import in `src/App.tsx` (mock → http). The `activateMandate` handler above does not change.
 
 ### Server-side requirements (important)
 

@@ -20,12 +20,43 @@
  */
 
 import { catalog } from '../data/catalog';
-import type { AuditEvent, AuthorizationResult, Mandate, RuleCheck, Transaction } from '../domain/types';
+import type { AuditEvent, AuthorizationResult, Mandate, MandateInterpretationInput, RuleCheck, Transaction } from '../domain/types';
 import type { AuditRepository, CommerceGateway } from './contracts';
 
 /** Small artificial delay so the UI's loading states are visible in demos. */
 const wait = (ms = 220) => new Promise((resolve) => setTimeout(resolve, ms));
 const money = (value: number) => `HK$${value.toFixed(0)}`;
+
+/**
+ * interpretMandateLocally — LOCAL STAND-IN for the LLM module.
+ *
+ * Mimics what your LLM endpoint will do: take { instruction, priceLimit } and
+ * return a structured Mandate. Deterministic regex parsing keeps the demo
+ * offline and repeatable. When your LLM is ready, the HTTP gateway replaces
+ * this — see httpGateway.interpretMandate and BACKEND_INTEGRATION.md §4.
+ *
+ * It extracts a price like "under HK$300" / "at most HK$300" / "300" if no
+ * explicit priceLimit was typed, and maps a few keywords to categories.
+ */
+export function interpretMandateLocally(input: MandateInterpretationInput, defaults?: Partial<Mandate>): Mandate {
+  const text = input.instruction.toLowerCase();
+  const match = text.match(/(?:hk\$|hkd|\$)?\s*(\d{2,6})/);
+  const parsedLimit = match ? Number(match[1]) : undefined;
+  const limit = input.priceLimit ?? parsedLimit ?? defaults?.maxPerTransaction;
+
+  const categories: string[] = [];
+  if (/\b(mouses?|keyboards?|laptops?|usb|monitors?|headsets?|webcams?)\b/.test(text)) categories.push('Computer Accessories');
+  if (/\b(headphones?|earbuds?|speakers?|audio)\b/.test(text)) categories.push('Audio');
+
+  return {
+    id: `mandate-${Date.now().toString(36)}`,
+    maxPerTransaction: limit,
+    maxDailySpend: defaults?.maxDailySpend ?? (limit !== undefined ? limit * 2 : undefined),
+    allowedCategories: defaults?.allowedCategories ?? (categories.length ? categories : ['Computer Accessories']),
+    allowedMerchants: defaults?.allowedMerchants ?? ['campus-tech', 'student-store'],
+    expiresAt: defaults?.expiresAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
 
 /**
  * evaluatePolicy — THE deterministic authorization engine (prototype copy).
@@ -81,12 +112,18 @@ export function evaluatePolicy(mandate: Mandate, transaction: Transaction, now =
 /**
  * MockCommerceGateway — async dummy backend implementing CommerceGateway.
  * Each method mirrors a real endpoint (see contracts.ts). Delays simulate latency.
+ *
+ * `interpretMandate` now ACTUALLY WORKS locally via interpretMandateLocally,
+ * seeded with scenario defaults. It takes an optional `defaults` argument so
+ * App.tsx can pass the active scenario's mandate (expiry, allowed merchants)
+ * as the base for interpretation.
  */
-class MockCommerceGateway implements CommerceGateway {
+export class MockCommerceGateway implements CommerceGateway {
+  constructor(private defaults?: Partial<Mandate>) {}
   /** Dummy: local catalog. Real: GET /api/catalog */
   async getCatalog() { await wait(); return catalog; }
-  /** Dummy: throws — scenarios ship pre-parsed mandates. Real: POST /api/mandates/interpret (LLM → validated Mandate) */
-  async interpretMandate(_instruction: string): Promise<Mandate> { await wait(350); throw new Error('The prototype loads parsed mandates from demo scenarios. Connect POST /api/mandates/interpret here.'); }
+  /** Local LLM stand-in: parses { instruction, priceLimit } → Mandate. Real: POST /api/mandates/interpret */
+  async interpretMandate(input: MandateInterpretationInput): Promise<Mandate> { await wait(400); return interpretMandateLocally(input, this.defaults); }
   /** Dummy: local evaluatePolicy. Real: POST /api/authorization/evaluate */
   async authorize(mandate: Mandate, transaction: Transaction) { await wait(); return evaluatePolicy(mandate, transaction); }
   /** Dummy: instant transition. Real: POST /api/transactions/:id/payment/start */

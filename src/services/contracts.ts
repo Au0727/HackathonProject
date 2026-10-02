@@ -21,7 +21,7 @@
  * ============================================================================
  */
 
-import type { AuditEvent, AuthorizationResult, Mandate, Product, Transaction } from '../domain/types';
+import type { AuditEvent, AuthorizationResult, Mandate, MandateInterpretationInput, Product, Transaction } from '../domain/types';
 
 /**
  * CommerceGateway — every operation the UI needs from the "backend".
@@ -37,15 +37,20 @@ export interface CommerceGateway {
   getCatalog(): Promise<Product[]>;
 
   /**
-   * Send the user's natural-language instruction to your LLM pipeline and
-   * receive a validated, structured Mandate back.
+   * Send the user's natural-language instruction + price limit to your LLM
+   * pipeline and receive a validated, structured Mandate back.
+   *
+   * This is called from `activateMandate()` in App.tsx when the user clicks
+   * the "Activate mandate" button.
+   *
    *   Backend: POST /api/mandates/interpret
-   *     request  body: { "instruction": "Buy me a mouse under HK$300..." }
+   *     request  body: { "instruction": string, "priceLimit": number }
    *     response body: Mandate (the LLM proposes; your server validates)
+   *
    *   Security: the LLM output must be validated server-side against a schema;
    *   it is a PROPOSAL, never spending authority by itself.
    */
-  interpretMandate(instruction: string): Promise<Mandate>;
+  interpretMandate(input: MandateInterpretationInput): Promise<Mandate>;
 
   /**
    * Ask the DETERMINISTIC policy engine to evaluate a proposed transaction

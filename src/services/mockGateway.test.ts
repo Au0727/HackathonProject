@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../data/scenarios';
 import type { Transaction } from '../domain/types';
-import { evaluatePolicy } from './mockGateway';
+import { evaluatePolicy, interpretMandateLocally } from './mockGateway';
 
 /** Test helper: build a minimal Transaction with total = subtotal + shipping. */
 const tx = (productId: string, merchantId: string, subtotal: number, shipping: number): Transaction => ({
@@ -52,5 +52,31 @@ describe('deterministic authorization', () => {
   it('asks when a confirmation threshold is crossed', () => {
     const mandate = { ...scenarios[0].mandate, requiresConfirmationAbove: 200 };
     expect(evaluatePolicy(mandate, tx('mouse-quiet','campus-tech',219,20), now).decision).toBe('ASK');
+  });
+});
+
+describe('mandate interpretation (local LLM stand-in)', () => {
+  it('prefers the explicit priceLimit the user typed', () => {
+    const mandate = interpretMandateLocally({ instruction: 'Buy me a mouse', priceLimit: 300 });
+    expect(mandate.maxPerTransaction).toBe(300);
+    expect(mandate.maxDailySpend).toBe(600);
+  });
+  it('extracts a price embedded in the natural-language instruction', () => {
+    const mandate = interpretMandateLocally({ instruction: 'Buy me a wireless mouse under HK$250' });
+    expect(mandate.maxPerTransaction).toBe(250);
+  });
+  it('falls back to scenario defaults when neither input nor text gives a limit', () => {
+    const mandate = interpretMandateLocally({ instruction: 'Buy me a mouse' }, { maxPerTransaction: 300, allowedMerchants: ['campus-tech'] });
+    expect(mandate.maxPerTransaction).toBe(300);
+    expect(mandate.allowedMerchants).toEqual(['campus-tech']);
+  });
+  it('maps product keywords to allowed categories', () => {
+    const mandate = interpretMandateLocally({ instruction: 'Buy me headphones for study', priceLimit: 400 });
+    expect(mandate.allowedCategories).toContain('Audio');
+  });
+  it('always produces a valid future expiry and a unique id', () => {
+    const mandate = interpretMandateLocally({ instruction: 'Buy me a mouse', priceLimit: 300 });
+    expect(new Date(mandate.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    expect(mandate.id).toMatch(/^mandate-/);
   });
 });

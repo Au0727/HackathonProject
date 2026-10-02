@@ -19,7 +19,7 @@
  * ============================================================================
  */
 
-import type { AuditEvent, AuthorizationResult, Mandate, Product, Transaction } from '../domain/types';
+import type { AuditEvent, AuthorizationResult, Mandate, MandateInterpretationInput, Product, Transaction } from '../domain/types';
 import type { AuditRepository, CommerceGateway } from './contracts';
 
 /** Base URL from a browser-safe env var (see .env.example). Never put secrets here. */
@@ -49,8 +49,8 @@ export class HttpCommerceGateway implements CommerceGateway {
   }
 
   /** POST /api/mandates/interpret → Mandate. Your server calls the LLM + validates. */
-  async interpretMandate(instruction: string): Promise<Mandate> {
-    return postJson<Mandate>('/api/mandates/interpret', { instruction });
+  async interpretMandate(input: MandateInterpretationInput): Promise<Mandate> {
+    return postJson<Mandate>('/api/mandates/interpret', input);
   }
 
   /** POST /api/authorization/evaluate → AuthorizationResult (deterministic, server-side). */

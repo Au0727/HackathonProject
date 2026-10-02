@@ -29,7 +29,8 @@ import { AlertTriangle, ArrowRight, Bot, Check, CheckCircle2, ChevronDown, Circl
 import { catalog } from './data/catalog';
 import { scenarios } from './data/scenarios';
 import type { AuditEvent, AuthorizationResult, Mandate, Product, ScenarioId, Transaction, TransactionStatus } from './domain/types';
-import { commerceGateway } from './services/mockGateway';
+import type { CommerceGateway } from './services/contracts';
+import { MockCommerceGateway } from './services/mockGateway';
 
 /** Currency formatter for HKD display (no decimals in this demo). */
 const fmt = (n: number) => new Intl.NumberFormat('en-HK', { style: 'currency', currency: 'HKD', maximumFractionDigits: 0 }).format(n);
@@ -60,8 +61,17 @@ function App() {
   const [authorization, setAuthorization] = useState<AuthorizationResult | null>(null);
   const [audits, setAudits] = useState<AuditEvent[]>([]);
   const [busy, setBusy] = useState(false);
+  const [interpretError, setInterpretError] = useState<string | null>(null);
   const selected = catalog.find((p) => p.id === selectedId)!;
   const finalTotal = selected.price + selected.shipping;
+
+  /**
+   * The backend gateway, seeded with the active scenario's mandate as defaults.
+   * interpretMandate(input) merges these defaults (expiry, allowed merchants,
+   * categories) with what the interpreter extracts from the user's text.
+   * [BACKEND-SEND]: swap MockCommerceGateway for HttpCommerceGateway to go live.
+   */
+  const commerceGateway: CommerceGateway = new MockCommerceGateway(scenario.mandate);
 
   /**
    * Records one audit event. [BACKEND-SEND]: in production this becomes
@@ -75,18 +85,37 @@ function App() {
   const loadScenario = (id: ScenarioId) => {
     const next = scenarios.find((s) => s.id === id)!;
     setScenarioId(id); setInstruction(next.request); setMandate({ ...next.mandate }); setSelectedId(next.productId);
-    setTransaction(null); setAuthorization(null); setAudits([]); setStep('mandate');
+    setTransaction(null); setAuthorization(null); setAudits([]); setInterpretError(null); setStep('mandate');
   };
 
   /**
-   * Step 1 → 2. [BACKEND-SEND]: this is where the user's natural-language
-   * instruction would go to the LLM:  const mandate = await commerceGateway
-   *   .interpretMandate(instruction)   // POST /api/mandates/interpret
-   * The prototype uses the scenario's pre-parsed mandate instead.
+   * Step 1 → 2. [BACKEND-SEND → LLM MODULE]
+   * When the user clicks "Activate mandate", this handler bundles the two
+   * things the LLM module needs —
+   *     instruction : the natural-language text from the Screen 1 textarea
+   *     priceLimit  : the "Maximum per purchase" value the user typed
+   * into a MandateInterpretationInput and sends it through the gateway:
+   *
+   *     mock today : MockCommerceGateway.interpretMandate  (local parser)
+   *     real later : POST /api/mandates/interpret          (LLM → validated Mandate)
+   *
+   * The returned structured Mandate replaces the editable policy fields, an
+   * audit event records the interpretation, and the flow advances to the
+   * agent workspace. Errors keep the user on Screen 1 with a readable message.
    */
-  const activateMandate = () => {
-    appendAudit('MANDATE_ACTIVATED', 'USER', `You activated a ${fmt(mandate.maxPerTransaction ?? 0)} purchase limit.`, { mandate, instruction });
-    setStep('shop');
+  const activateMandate = async () => {
+    setBusy(true);
+    setInterpretError(null);
+    try {
+      const parsed = await commerceGateway.interpretMandate({ instruction, priceLimit: mandate.maxPerTransaction });
+      setMandate(parsed);
+      appendAudit('MANDATE_INTERPRETED', 'AGENT', `The agent interpreted your instruction into a ${fmt(parsed.maxPerTransaction ?? 0)} spending mandate.`, { input: { instruction, priceLimit: mandate.maxPerTransaction }, mandate: parsed });
+      setStep('shop');
+    } catch (err) {
+      setInterpretError(err instanceof Error ? err.message : 'The agent could not interpret that instruction. Please try rephrasing it.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   /**
@@ -166,7 +195,7 @@ function App() {
     <main className="main">
       <DemoBar active={scenarioId} onSelect={loadScenario} />
       <StepNav current={step} onChange={setStep} />
-      {step === 'mandate' && <MandateSetup instruction={instruction} setInstruction={setInstruction} mandate={mandate} setMandate={setMandate} onContinue={activateMandate} />}
+      {step === 'mandate' && <MandateSetup instruction={instruction} setInstruction={setInstruction} mandate={mandate} setMandate={setMandate} busy={busy} error={interpretError} onContinue={activateMandate} />}
       {step === 'shop' && <ShoppingWorkspace instruction={instruction} mandate={mandate} selectedId={selectedId} setSelectedId={setSelectedId} onPropose={propose} />}
       {step === 'authorize' && transaction && <AuthorizationScreen product={selected} transaction={transaction} mandate={mandate} result={authorization} busy={busy} onEvaluate={evaluate} onCheckout={checkout} onRevoke={revoke} onResult={() => setStep('result')} />}
       {step === 'result' && <ResultScreen transaction={transaction} product={selected} authorization={authorization} onAudit={() => setStep('audit')} onReset={() => loadScenario(scenarioId)} />}
@@ -187,13 +216,16 @@ function StepNav({ current, onChange }: { current: StepId; onChange: (id: StepId
 /**
  * SCREEN 1 — Mandate Setup.
  * Left: natural-language instruction textarea (this text is what gets sent to
- * your LLM endpoint via commerceGateway.interpretMandate).
+ * your LLM endpoint via commerceGateway.interpretMandate when the button is
+ * clicked — see activateMandate in App.tsx).
  * Right: editable structured mandate fields (limits, category, expiry) that
  * the deterministic policy engine enforces.
+ * `busy` shows the interpreting state on the button; `error` shows any failure
+ * from the interpreter so the user can rephrase and retry.
  */
-function MandateSetup({ instruction, setInstruction, mandate, setMandate, onContinue }: { instruction: string; setInstruction: (v:string)=>void; mandate: Mandate; setMandate:(m:Mandate)=>void; onContinue:()=>void }) { return <section className="screen"><div className="screen-heading"><span className="step-kicker">Step 1 · Set the boundary</span><h1>Delegate a purchase,<br/><em>not your control.</em></h1><p>Tell your shopping agent what you need. A structured spending mandate keeps every purchase inside your rules.</p></div><div className="two-col">
+function MandateSetup({ instruction, setInstruction, mandate, setMandate, busy, error, onContinue }: { instruction: string; setInstruction: (v:string)=>void; mandate: Mandate; setMandate:(m:Mandate)=>void; busy: boolean; error: string|null; onContinue:()=>void }) { return <section className="screen"><div className="screen-heading"><span className="step-kicker">Step 1 · Set the boundary</span><h1>Delegate a purchase,<br/><em>not your control.</em></h1><p>Tell your shopping agent what you need. A structured spending mandate keeps every purchase inside your rules.</p></div><div className="two-col">
   <div className="card instruction-card"><div className="card-title"><div className="icon-box purple"><Bot size={19}/></div><div><h2>Your instruction</h2><p>Use natural language — the agent handles the rest.</p></div></div><label className="sr-only" htmlFor="instruction">Shopping instruction</label><textarea id="instruction" value={instruction} onChange={e=>setInstruction(e.target.value)} /><div className="trust-note"><LockKeyhole size={16}/><span><strong>The agent can interpret.</strong> It cannot authorize spending.</span></div></div>
-  <div className="card policy-card"><div className="card-title"><div className="icon-box green"><ShieldCheck size={19}/></div><div><h2>Enforceable mandate</h2><p>These rules are checked by deterministic code.</p></div><span className={`status-chip ${mandate.revokedAt ? 'red' : 'green'}`}>{mandate.revokedAt ? 'Revoked' : 'Ready'}</span></div><div className="field-grid"><label><span>Maximum per purchase</span><div className="input-prefix"><b>HK$</b><input type="number" value={mandate.maxPerTransaction ?? ''} onChange={e=>setMandate({...mandate,maxPerTransaction:Number(e.target.value)})}/></div></label><label><span>Daily spending limit</span><div className="input-prefix"><b>HK$</b><input type="number" value={mandate.maxDailySpend ?? ''} onChange={e=>setMandate({...mandate,maxDailySpend:Number(e.target.value)})}/></div></label><label><span>Allowed category</span><div className="select-like">{mandate.allowedCategories?.[0]}<ChevronDown size={15}/></div></label><label><span>Expires</span><input type="date" value={mandate.expiresAt.slice(0,10)} onChange={e=>setMandate({...mandate,expiresAt:`${e.target.value}T23:59:59.000Z`})}/></label></div><div className="merchant-row"><span>Approved merchants</span><div><span className="tag">Campus Tech <X size={12}/></span><span className="tag">Student Store <X size={12}/></span></div></div><button className="primary wide" onClick={onContinue}>Activate mandate <ArrowRight size={17}/></button></div>
+  <div className="card policy-card"><div className="card-title"><div className="icon-box green"><ShieldCheck size={19}/></div><div><h2>Enforceable mandate</h2><p>These rules are checked by deterministic code.</p></div><span className={`status-chip ${mandate.revokedAt ? 'red' : 'green'}`}>{mandate.revokedAt ? 'Revoked' : 'Ready'}</span></div><div className="field-grid"><label><span>Maximum per purchase</span><div className="input-prefix"><b>HK$</b><input type="number" value={mandate.maxPerTransaction ?? ''} onChange={e=>setMandate({...mandate,maxPerTransaction:Number(e.target.value)})}/></div></label><label><span>Daily spending limit</span><div className="input-prefix"><b>HK$</b><input type="number" value={mandate.maxDailySpend ?? ''} onChange={e=>setMandate({...mandate,maxDailySpend:Number(e.target.value)})}/></div></label><label><span>Allowed category</span><div className="select-like">{mandate.allowedCategories?.[0]}<ChevronDown size={15}/></div></label><label><span>Expires</span><input type="date" value={mandate.expiresAt.slice(0,10)} onChange={e=>setMandate({...mandate,expiresAt:`${e.target.value}T23:59:59.000Z`})}/></label></div><div className="merchant-row"><span>Approved merchants</span><div><span className="tag">Campus Tech <X size={12}/></span><span className="tag">Student Store <X size={12}/></span></div></div>{error&&<div className="error-note"><AlertTriangle size={15}/><span>{error}</span></div>}<button className="primary wide" disabled={busy} onClick={onContinue}>{busy?'Interpreting…':'Activate mandate'} <ArrowRight size={17}/></button></div>
 </div></section>; }
 
 /**
