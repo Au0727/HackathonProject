@@ -77,11 +77,6 @@ def redact(value: Any) -> Any:
     return value
 
 
-def contains_secret(text: str, secret: Optional[str]) -> bool:
-    """True when `secret` appears verbatim in `text` (used by tests)."""
-    return bool(secret) and secret in (text or "")
-
-
 class _ColourFormatter(logging.Formatter):
     """Colourise the level name when writing to a real terminal."""
 

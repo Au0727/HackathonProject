@@ -1014,14 +1014,24 @@ class OpenAICompatibleLLM:
 LLM = OpenAICompatibleLLM
 
 
-def default_llm(config: Optional[AppConfig] = None, config_path: Optional[Path] = None) -> LLMClient:
+def default_llm(
+    config: Optional[AppConfig] = None,
+    config_path: Optional[Path] = None,
+    *,
+    allow_network: bool = True,
+) -> LLMClient:
     """Use the configured model, or stay offline when there is no credential.
 
     Selects a provider when the config file names one, or when a provider
     environment variable is present. With no credential anywhere, returns the
     deterministic offline client so the pipeline and tests always run.
+
+    ``allow_network=False`` forces the offline client even when a key is
+    configured. Tests use it so they can never spend credit or vary between runs.
     """
     config = config or load_config(config_path)
+    if not allow_network:
+        return OfflineRuleBasedLLM()
     if config.has_credentials():
         try:
             return OpenAICompatibleLLM(config=config)
@@ -1195,10 +1205,11 @@ def build_llm(
     interactions: Optional["LLMInteractionLog"] = None,
     echo: bool = True,
     config_path: Optional[Path] = None,
+    allow_network: bool = True,
 ) -> LLMClient:
     """The client the pipeline should use: configured model, wrapped for logging."""
     resolved = config or load_config(config_path)
-    inner = default_llm(resolved)
+    inner = default_llm(resolved, allow_network=allow_network)
     return LoggingLLM(inner, interactions, echo=echo)
 
 
@@ -2605,7 +2616,7 @@ def _prescan_args(argv: List[str]) -> Tuple[List[str], Dict[str, Any]]:
         "quiet": False, "verbose": False, "json": False,
         "show_config": False, "config": None, "session": None,
         "dry_run": False, "audit": False, "init": False, "force": False,
-        "log_session": None,
+        "log_session": None, "offline": False,
     }
     rest: List[str] = []
     index = 0
@@ -2615,6 +2626,8 @@ def _prescan_args(argv: List[str]) -> Tuple[List[str], Dict[str, Any]]:
             options["quiet"] = True
         elif item == "--verbose":
             options["verbose"] = True
+        elif item == "--offline":
+            options["offline"] = True
         elif item == "--json":
             options["json"] = True
         elif item == "--show-config":
@@ -2713,7 +2726,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if LLMInteractionLog is not None and handles.llm_log:
         interactions = LLMInteractionLog(handles.llm_log, session=handles.session,
                                          enabled=True)
-    llm = build_llm(config, interactions=interactions)
+    llm = build_llm(
+        config,
+        interactions=interactions,
+        allow_network=not options["offline"],
+    )
 
     log_stage(f"inventory loaded {glyph('arrow')} {source}", stream=human_stream)
     log_stage(f"model backend    {glyph('arrow')} {type(getattr(llm, 'inner', llm)).__name__}"

@@ -136,7 +136,7 @@ def _deterministic_score(product_id: str, merchant_id: str, low: int, high: int)
     """A stable score in [low, high] derived only from the ids.
 
     Deterministic on purpose: the firewall's promise is that identical inputs
-    produce identical decisions, so a randomised score would break that promise
+    produce identical decisions, so a randomized score would break that promise
     for the merchant-risk rule.
     """
     seed = f"{product_id}:{merchant_id}"
@@ -208,8 +208,8 @@ def build_merchant_directory(
     return directory, stats
 
 
-def merchant_names(directory: Dict[str, Any]) -> Dict[str, str]:
-    """merchant_id -> display name, for the final JSON."""
+def _merchant_names(directory: Dict[str, Any]) -> Dict[str, str]:
+    """merchant_id -> display name, used when a plan carries no name."""
     return {
         str(merchant_id): str(record.get("merchantName") or merchant_id)
         for merchant_id, record in (directory.get("merchants") or {}).items()
@@ -446,18 +446,26 @@ def run(
     max_daily_spend: str = DEFAULT_MAX_DAILY_SPEND,
     confirmation_threshold: str = DEFAULT_CONFIRMATION_THRESHOLD,
     daily_spent: str = "0.00",
+    progress: bool = True,
+    offline: bool = False,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    """Full pipeline: rank `options` candidates, authorize, emit `keep` choices."""
+    """Full pipeline: rank `options` candidates, authorize, emit `keep` choices.
+
+    Set ``progress=False`` to keep stdout clean for JSON output, and
+    ``offline=True`` to force the deterministic local model instead of a
+    configured API (used by the tests, which must never spend credit).
+    """
     out = stream or sys.stdout
     config = config or load_config()
     inventory = default_inventory_path(config)
     products = load_products(inventory)
-    llm = build_llm(config)
+    llm = build_llm(config, allow_network=not offline)
 
-    log_stage(
-        f"stage A          {glyph('arrow')} shopping agent ranks up to {options} "
-        f"option(s) per request", stream=out,
-    )
+    if progress:
+        log_stage(
+            f"stage A          {glyph('arrow')} shopping agent ranks up to {options} "
+            f"option(s) per request", stream=out,
+        )
     results = []
     for index, request in enumerate(requests, 1):
         pipeline = IntentToPurchasePipeline(
@@ -475,8 +483,9 @@ def run(
     report_path.write_text(
         json.dumps(base_json, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    log_stage(f"stage A          {glyph('ok')} report written to {report_path.name}",
-              stream=out)
+    if progress:
+        log_stage(f"stage A          {glyph('ok')} report written to {report_path.name}",
+                  stream=out)
 
     directory, stats = build_merchant_directory(
         products,
@@ -486,23 +495,26 @@ def run(
     )
 
     if dry_run:
-        log_stage(
-            f"dry run          {glyph('ok')} agent report ready; firewall not invoked",
-            stream=out,
-        )
+        if progress:
+            log_stage(
+                f"dry run          {glyph('ok')} agent report ready; "
+                f"firewall not invoked", stream=out,
+            )
         return base_json, {"dry_run": True, "report_path": str(report_path),
                            "merchant_stats": stats}
 
-    log_stage(
-        f"stage B          {glyph('arrow')} Financial Firewall authorizes each plan",
-        stream=out,
-    )
+    if progress:
+        log_stage(
+            f"stage B          {glyph('arrow')} Financial Firewall authorizes each plan",
+            stream=out,
+        )
     outcome = authorize_report(
         report_path,
         catalog_path=DEFAULT_MERCHANT_DIR,
         keep=keep,
         directory=directory,
         stream=out,
+        echo=progress,
         max_per_transaction=max_per_transaction,
         max_daily_spend=max_daily_spend,
         confirmation_threshold=confirmation_threshold,
@@ -512,10 +524,11 @@ def run(
     final["merchant_directory"] = stats
     final["agent_report"] = report_path.name
 
-    log_stage(
-        f"stage B          {glyph('ok')} {final['requests_with_options']} request(s) "
-        f"have authorized options", stream=out,
-    )
+    if progress:
+        log_stage(
+            f"stage B          {glyph('ok')} {final['requests_with_options']} request(s) "
+            f"have authorized options", stream=out,
+        )
     return final, {"outcome": outcome, "report_path": report_path,
                    "merchant_stats": stats}
 

@@ -1334,7 +1334,7 @@ class TestGrandTotal(unittest.TestCase):
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main([
-                "--json", "--quiet", "--log-session", "jsontest",
+                "--json", "--quiet", "--offline", "--log-session", "jsontest",
                 "--config", str(config_path),
                 "Kensington wireless mouse under $800 total",
             ])
