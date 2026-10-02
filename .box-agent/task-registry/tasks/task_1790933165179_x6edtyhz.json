@@ -1,0 +1,592 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "artifact_298c1188937c987947ba8006",
+      "current_revision_id": "revision_82f6ca0fcf2bc1fa863626b3",
+      "filename": "package.json",
+      "kind": "data",
+      "mime": "application/json",
+      "rel_path": "package.json",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_82f6ca0fcf2bc1fa863626b3",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "6936df1dbebcba71ed4fd8d466fe5e7903073f8dc53d1e2df6e61e4ec8854301",
+          "size": 554,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_53f03e3e7230ab28cf0aa73b",
+      "current_revision_id": "revision_075fa18ab037a2b36c2cefcb",
+      "filename": "tsconfig.json",
+      "kind": "data",
+      "mime": "application/json",
+      "rel_path": "tsconfig.json",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_075fa18ab037a2b36c2cefcb",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808",
+          "size": 119,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_6f436790ffdbddb2df1ab636",
+      "current_revision_id": "revision_43792834fc40f263a022cab5",
+      "filename": "tsconfig.app.json",
+      "kind": "data",
+      "mime": "application/json",
+      "rel_path": "tsconfig.app.json",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_43792834fc40f263a022cab5",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "a7266d1c85fa6947c70073256d9a73e4c459e97b0b4ef24b5c48dcab498ef4c5",
+          "size": 507,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_957bd4e764c3f4ba8d405280",
+      "current_revision_id": "revision_8b528fef26124d092c8be394",
+      "filename": "tsconfig.node.json",
+      "kind": "data",
+      "mime": "application/json",
+      "rel_path": "tsconfig.node.json",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_b31fec31cb337cb5e721dfb3",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "4d899360a26430461f39fa0b9297a566eab26e2fc53c28c6eb34d3c5f344d9c6",
+          "size": 211,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_8b528fef26124d092c8be394",
+          "produced_at": "2026-10-02T17:35:31+08:00",
+          "sha256": "843c35f20f6d101c456338994e7d3d0c8c94182fcc8b7378f1e096c7ed547234",
+          "size": 191,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_b4f059420d838f85cb3c950f",
+      "current_revision_id": "revision_52f4ad94b5f641a796d9ff4d",
+      "filename": "vite.config.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "vite.config.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_52f4ad94b5f641a796d9ff4d",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "14501439875c563028a6d28102ab04a36105e6f013b0803a9b5f62690bf45098",
+          "size": 162,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_3dfa4ed464734b86d32eed81",
+      "current_revision_id": "revision_bec899524ea3c6b354c158cd",
+      "filename": "index.html",
+      "kind": "document",
+      "mime": "text/html",
+      "rel_path": "index.html",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_bec899524ea3c6b354c158cd",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "ef28fd7348b45336ed441d30fb5f4733e71261108b33b433ca1bf37318f2053b",
+          "size": 414,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_fa36b1efbe39dffce4c46f7f",
+      "current_revision_id": "revision_6cb7e5c52eb708507125bb52",
+      "filename": ".gitignore",
+      "kind": "file",
+      "mime": "application/octet-stream",
+      "rel_path": ".gitignore",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_6cb7e5c52eb708507125bb52",
+          "produced_at": "2026-10-02T17:27:18+08:00",
+          "sha256": "33f9edfdbafef25cc208909882abea2f039552e6422bfd1f13ecea8714ac4988",
+          "size": 53,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_eb7f3ff5cbf26d2b629fc7a2",
+      "current_revision_id": "revision_3d55bde5c2d7570766d0d045",
+      "filename": "types.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/domain/types.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_d6b171824ad1db6c65e6f569",
+          "produced_at": "2026-10-02T17:27:42+08:00",
+          "sha256": "435aa348f3babdaa058884a82ef929a2dc87f3d0c2cebd930b4d131e9ef1369c",
+          "size": 1731,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_3d55bde5c2d7570766d0d045",
+          "produced_at": "2026-10-02T20:55:54+08:00",
+          "sha256": "c5eb3a1dc8bbc1cb2e90af6a555fe6cbc303da29a5e9dd5a02f97df4516d87a0",
+          "size": 6260,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_5f0188cfad6183ad8cf7fb7d",
+      "current_revision_id": "revision_4d3249bb5a70c686d2348bbc",
+      "filename": "contracts.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/services/contracts.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_8e7b20209f018c87ebc29bc9",
+          "produced_at": "2026-10-02T17:27:42+08:00",
+          "sha256": "b62fb920014dbefab1740a9b8bd786a6c00b372715c6423569febe25c8b784c0",
+          "size": 698,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_4d3249bb5a70c686d2348bbc",
+          "produced_at": "2026-10-02T20:56:53+08:00",
+          "sha256": "4bbb02e393986b2ffcb97f88c6151dbfdc86f77b765503e5fd31b807e68fe13b",
+          "size": 4122,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_a678db25c69f61c47785bdb2",
+      "current_revision_id": "revision_cc6e5bce3ee127fa5f888bad",
+      "filename": "catalog.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/data/catalog.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_b19fdba58f03d7690dc1fdba",
+          "produced_at": "2026-10-02T17:27:42+08:00",
+          "sha256": "561d11fceeb374421e2c9038a63a2c2b242b725df548e849f9d35df031efe81a",
+          "size": 2024,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_cc6e5bce3ee127fa5f888bad",
+          "produced_at": "2026-10-02T20:58:57+08:00",
+          "sha256": "b03bd6ed73799cb20416b69087ce787adac12777a402a5bc5e136a70c8b9aa61",
+          "size": 3970,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_83c7dc8879c0c58a11694180",
+      "current_revision_id": "revision_fd6a0d888690e857b0a5d042",
+      "filename": "scenarios.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/data/scenarios.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_ab8e98787aa68f8966f0f782",
+          "produced_at": "2026-10-02T17:27:42+08:00",
+          "sha256": "0208dd01be6f8ef35ed698451010bdc346c539711139775d1070755bad0a7bd8",
+          "size": 1914,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_fd6a0d888690e857b0a5d042",
+          "produced_at": "2026-10-02T20:58:57+08:00",
+          "sha256": "d5d7e1c5bc9a91c10c05b7c057766a3c908c67e2e56b8fbf5c38fbfcd935ba26",
+          "size": 3457,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_a0a4887a007e246cc9f6b3ea",
+      "current_revision_id": "revision_f8b997f8dbd7f61d5c6db09c",
+      "filename": "main.tsx",
+      "kind": "code",
+      "mime": "application/octet-stream",
+      "rel_path": "src/main.tsx",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_06a19e5daf7ef0eca0332a86",
+          "produced_at": "2026-10-02T17:27:42+08:00",
+          "sha256": "7fc3b8c9d229624279e9ba4cad3ddca11b4c474f00f22752fa47781b1db4924f",
+          "size": 229,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_f8b997f8dbd7f61d5c6db09c",
+          "produced_at": "2026-10-02T20:58:57+08:00",
+          "sha256": "0966d4c103de68d8d9f30e6abe79cc1379e076545cdd0f327206a602e7b0d18a",
+          "size": 822,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_2faebb73c2c6a696b2c41379",
+      "current_revision_id": "revision_99ae532a9ffec522da0328b1",
+      "filename": "mockGateway.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/services/mockGateway.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_39caa0c2742a800b47c4128b",
+          "produced_at": "2026-10-02T17:27:58+08:00",
+          "sha256": "62bb2457e7cc662a87ed0c0de3fdf5d1252fe2d516f9712f64615b5205c3ee32",
+          "size": 4888,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_a432a7c817d2d3235c3301fd",
+          "produced_at": "2026-10-02T17:36:39+08:00",
+          "sha256": "760ab39fb4aaf738be095fc178e5231deb09adf09eab27db94d273f35f015141",
+          "size": 4906,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_99ae532a9ffec522da0328b1",
+          "produced_at": "2026-10-02T20:57:45+08:00",
+          "sha256": "43449f1ddea1ab375e48c33f4618ea16c7b71bef1fb6c91e2fb9baec63d2df40",
+          "size": 8006,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_e26fa4243a5f32b5fa825cc3",
+      "current_revision_id": "revision_fe8c6839ec9528a9c57495eb",
+      "filename": "App.tsx",
+      "kind": "code",
+      "mime": "application/octet-stream",
+      "rel_path": "src/App.tsx",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_0c91b3aef885d11f2cb52265",
+          "produced_at": "2026-10-02T17:29:08+08:00",
+          "sha256": "3944b4f2dfd6c909d26b970dcb6669785d945f84e4566b22fce807f24d14fbf1",
+          "size": 20907,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_60e6447fdd2daec2c1269f0a",
+          "produced_at": "2026-10-02T17:35:10+08:00",
+          "sha256": "6b9b333732fededd0dfdfd3140f8aa7167e03ee28cdbffecfa89ef5f982383cd",
+          "size": 20905,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_fe8c6839ec9528a9c57495eb",
+          "produced_at": "2026-10-02T21:01:44+08:00",
+          "sha256": "0f09325b9cc278b75747c235f4720a2407514c5b38e66f38dc00d9c016a0caed",
+          "size": 26552,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_c02d05417d4021299760e7e1",
+      "current_revision_id": "revision_c626aeb6fd63def2924f7b21",
+      "filename": "styles.css",
+      "kind": "document",
+      "mime": "text/css",
+      "rel_path": "src/styles.css",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_ffc2fc3ca7c45e05af62a01a",
+          "produced_at": "2026-10-02T17:29:57+08:00",
+          "sha256": "18ec2870bdab21c6ebf15c4d35262e02995bd605abdc3ca62656b600c59218b8",
+          "size": 17497,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_c626aeb6fd63def2924f7b21",
+          "produced_at": "2026-10-02T21:06:17+08:00",
+          "sha256": "24e62137532aa60cbf0ac5abccbc8f64fd7bda877b091c876e82654d5b4a93e9",
+          "size": 18746,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_b3ca9602f843995382c893ac",
+      "current_revision_id": "revision_f5ad8ed7b828b65bb999f08a",
+      "filename": "README.md",
+      "kind": "document",
+      "mime": "text/markdown",
+      "rel_path": "README.md",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_b4d48903e03ca3fcc9a7c19f",
+          "produced_at": "2026-10-02T17:31:35+08:00",
+          "sha256": "bb2c280ed276670f0cb8fdb1f538ae37abcdd6f08d2d8eb89c621f318808307b",
+          "size": 3800,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_f5ad8ed7b828b65bb999f08a",
+          "produced_at": "2026-10-02T21:16:57+08:00",
+          "sha256": "3c47f5386a15970f8d73f5b43813e6680dd683609dcbacda84c0816940a966f0",
+          "size": 3697,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_3b1c70ec58d402466e812af8",
+      "current_revision_id": "revision_47a2b3ed16a66a57b11fd63d",
+      "filename": "ARCHITECTURE.md",
+      "kind": "document",
+      "mime": "text/markdown",
+      "rel_path": "ARCHITECTURE.md",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_ab2020626f4a5edfaa1d81f3",
+          "produced_at": "2026-10-02T17:31:35+08:00",
+          "sha256": "e4d492bc8423b7b91dcd63dcb401eee59dd4d5972385821bd1c31394ea2b9c5c",
+          "size": 5707,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_47a2b3ed16a66a57b11fd63d",
+          "produced_at": "2026-10-02T21:17:56+08:00",
+          "sha256": "90d0d06156a36c7e2397a07e69f5aeb463a68bf1c08028f1430b8d269a04fba3",
+          "size": 5578,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_e2f34d63e06c383b9fd5ba5f",
+      "current_revision_id": "revision_a1971ff6e5872e03fc61160a",
+      "filename": "mockGateway.test.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/services/mockGateway.test.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_23c8a068586aed77a6e6a7c3",
+          "produced_at": "2026-10-02T17:31:35+08:00",
+          "sha256": "339406eab12208902a6b4655a2657356b0f5f44db4892c2fb6512a714440e6a1",
+          "size": 2079,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_a1971ff6e5872e03fc61160a",
+          "produced_at": "2026-10-02T21:09:42+08:00",
+          "sha256": "caaaef10b57e2002467b0dcb326d51b9a26e4f8b5183ca9daf1d55c537828d59",
+          "size": 2904,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_8d01d5f9151680747db131e3",
+      "current_revision_id": "revision_c0c2590d0476dd1e87e51c2b",
+      "filename": ".env.example",
+      "kind": "file",
+      "mime": "application/octet-stream",
+      "rel_path": ".env.example",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_c0c2590d0476dd1e87e51c2b",
+          "produced_at": "2026-10-02T17:31:35+08:00",
+          "sha256": "f47d68fd9aa6ae9d62a0c6d811f41a00ee00d06631a91e43754ed1061938c318",
+          "size": 124,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_e96949f8a7ba7d1b33a015c0",
+      "current_revision_id": "revision_61fc8e089214c0c87a772006",
+      "filename": "vite-env.d.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/vite-env.d.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_61fc8e089214c0c87a772006",
+          "produced_at": "2026-10-02T17:36:49+08:00",
+          "sha256": "65996936fbb042915f7b74a200fcdde7e410f32a669b1ab9597cfaa4b0faddb5",
+          "size": 38,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_f20ed4a337d5dbe78d6f304c",
+      "current_revision_id": "revision_4d8c86bfc8e64c1d4fddf179",
+      "filename": "index-BB1mUAn4.js",
+      "kind": "document",
+      "mime": "text/javascript",
+      "rel_path": "dist/assets/index-BB1mUAn4.js",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_4d8c86bfc8e64c1d4fddf179",
+          "produced_at": "2026-10-02T17:37:21+08:00",
+          "sha256": "81779d9a0fe091f3ee45b740bb3a1fe0a07ce402b5f01898abdfb3228890fd08",
+          "size": 252987,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_e29a062011fa7a7e0b649b6c",
+      "current_revision_id": "revision_e621ac043e9535e45d5b30da",
+      "filename": "index-BRucflfR.css",
+      "kind": "document",
+      "mime": "text/css",
+      "rel_path": "dist/assets/index-BRucflfR.css",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_e621ac043e9535e45d5b30da",
+          "produced_at": "2026-10-02T17:37:21+08:00",
+          "sha256": "b768eb0f5843fcaa5c9b317c93cdeeb8bb03d3aded5095cd51b8c63d5c92253e",
+          "size": 17433,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_74612301272a0d260ef486a3",
+      "current_revision_id": "revision_33ed194bd876a09fa6fb7322",
+      "filename": "index.html",
+      "kind": "document",
+      "mime": "text/html",
+      "rel_path": "dist/index.html",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_50c5752d415b99b026c8a6da",
+          "produced_at": "2026-10-02T17:37:21+08:00",
+          "sha256": "85cc955e192e3496dd92d247ced9c4d992e068ebe14a064c6dcecc129ba046f9",
+          "size": 512,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        },
+        {
+          "artifact_revision_id": "revision_33ed194bd876a09fa6fb7322",
+          "produced_at": "2026-10-02T21:13:33+08:00",
+          "sha256": "ebcf8f05e743ed88540a37d843af62b6de213a4eaea292da7e82c630a5cb105d",
+          "size": 512,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_7bf9a6dfd215e0234478ba3d",
+      "current_revision_id": "revision_50153e8be53a513bf739c134",
+      "filename": "authorization-denied.png",
+      "kind": "image",
+      "mime": "image/png",
+      "rel_path": "qa/authorization-denied.png",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_50153e8be53a513bf739c134",
+          "produced_at": "2026-10-02T17:41:52+08:00",
+          "sha256": "fab458eac6e27104e5356e6b84ca79d79c2893985b92cc4f55b200b72ff69cef",
+          "size": 125939,
+          "turn_id": "local_1790933165178_pngpbhpy"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_f904d8dcc40b521aac009ecf",
+      "current_revision_id": "revision_62afee1e2a058448399570b1",
+      "filename": "index-Dri0D2NX.js",
+      "kind": "document",
+      "mime": "text/javascript",
+      "rel_path": "dist/assets/index-Dri0D2NX.js",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_62afee1e2a058448399570b1",
+          "produced_at": "2026-10-02T21:13:33+08:00",
+          "sha256": "4eca9e3baa8a3819c9339d9e454cf32bc160038698a60b53fb47ccce4c449968",
+          "size": 252974,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_77af7f19934d0875d6819197",
+      "current_revision_id": "revision_82fddbb7d6e0fabbe6fe8ebe",
+      "filename": "BACKEND_INTEGRATION.md",
+      "kind": "document",
+      "mime": "text/markdown",
+      "rel_path": "BACKEND_INTEGRATION.md",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_82fddbb7d6e0fabbe6fe8ebe",
+          "produced_at": "2026-10-02T21:15:20+08:00",
+          "sha256": "d677867afccd10a7444cd30014cbe11c6823de1a42c1edbd9ec251b099904cd9",
+          "size": 11552,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_62b394613c88376f7cb45ad2",
+      "current_revision_id": "revision_442df229bd9ca915dd8dfa81",
+      "filename": "httpGateway.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/services/httpGateway.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_442df229bd9ca915dd8dfa81",
+          "produced_at": "2026-10-02T21:16:16+08:00",
+          "sha256": "c6dba40268a7b28a0c24d84997231e8e3f3259a88b459ec42b570e494ec04652",
+          "size": 4390,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    },
+    {
+      "artifact_id": "artifact_5435690a5c7180fd5fa81de4",
+      "current_revision_id": "revision_d799fd46fc513c5507ea188a",
+      "filename": "index.ts",
+      "kind": "video",
+      "mime": "video/mp2t",
+      "rel_path": "src/services/index.ts",
+      "revisions": [
+        {
+          "artifact_revision_id": "revision_d799fd46fc513c5507ea188a",
+          "produced_at": "2026-10-02T21:16:16+08:00",
+          "sha256": "9faf49a0c6899ac190b0316340c3a9ac5cd8ff9050f5dd70a3ca8da2e1ea90c6",
+          "size": 1421,
+          "turn_id": "local_1790945576174_az2iucw5"
+        }
+      ]
+    }
+  ],
+  "created_at": "2026-10-02T09:26:07.439231+00:00",
+  "current_turn_id": "local_1790945576174_az2iucw5",
+  "execution_status": "completed",
+  "schema_version": 3,
+  "session_id": "4e1fdf88-e567-43ea-a750-2edfd3f620ff",
+  "task_id": "task_1790933165179_x6edtyhz",
+  "updated_at": "2026-10-02T13:34:11.167949+00:00"
+}
