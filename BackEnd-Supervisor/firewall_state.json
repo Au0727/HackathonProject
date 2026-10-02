@@ -1,0 +1,7 @@
+{
+  "currency": "HKD",
+  "maxPerTransaction": 400.0,
+  "maxDailySpend": 1200.0,
+  "confirmationThreshold": 300.0,
+  "dailySpent": 0.0
+}

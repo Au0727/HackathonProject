@@ -1,0 +1,58 @@
+# ===========================================================================
+# Secrets
+# ===========================================================================
+# Holds your real API key. Never commit this file.
+BackEnd-AI/config.local.json
+*.local.json
+.env
+.env.*
+*.key
+secrets.json
+
+# ===========================================================================
+# Python
+# ===========================================================================
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+
+# ===========================================================================
+# Logs and generated reports
+# ===========================================================================
+# Run logs contain prompts and model replies; agent reports are derived data.
+**/logs/
+*.log
+BackEnd-AI/BackEnd-Supervisor/samples/merchant_directory.json
+firewall_state.json
+blacklist.json
+audit.jsonl
+
+# ===========================================================================
+# Local scratch and tooling
+# ===========================================================================
+.piptmp/
+.wheels/
+.testtmp/
+.tmpcfg-*
+.tmpllm-*
+.tmplog-*
+.tmp-grand-*
+.tmp-*
+err.txt
+_out.json
+_err.txt
+
+# Editor and OS noise
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
