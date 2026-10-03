@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowRight, Bot, Check, CheckCircle2, ChevronDown, CircleDollarSign, FileClock, LockKeyhole, RotateCcw, ShieldCheck, ShoppingBag, Sparkles, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Bot, Check, CheckCircle2, ChevronDown, Circle, CircleDollarSign, Cross, FileClock, LockKeyhole, RotateCcw, ShieldCheck, ShoppingBag, Sparkles, X, XCircle } from 'lucide-react';
 import { catalog } from './data/catalog';
 import { scenarios } from './data/scenarios';
 import type { AuditEvent, AuthorizationResult, Mandate, Product, ScenarioId, Transaction } from './domain/types';
@@ -389,8 +389,8 @@ function ShoppingWorkspace({ products, instruction, mandate, selectedId, setSele
       </div>
     </> : <div className="empty-state card"><ShoppingBag/><h2>No selectable product</h2><p>Review the error above or return to revise your request.</p></div>}
     <div className="workflow-actions">
-      <button className="cancel-action" onClick={onCancel} disabled={busy}>Cancel</button>
-      <button className="confirm-action" onClick={onConfirm} disabled={busy || !picked}>{busy ? 'Checking and processing…' : 'Confirm'} <CheckCircle2 size={18}/></button>
+      <button className="cancel-action" onClick={onCancel} disabled={busy}>Cancel <X size={18}/></button>
+      <button className="confirm-action" onClick={onConfirm} disabled={busy || !picked}>{busy ? 'Checking and processing…' : 'Confirm'} <Circle size={18}/></button>
     </div>
   </section>;
 }
