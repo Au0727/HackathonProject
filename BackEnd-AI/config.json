@@ -1,0 +1,28 @@
+{
+  "_comment": "Settings for the intent-to-purchase pipeline. This file has NO secrets and is safe to commit. Put your real api_key in config.local.json instead (git-ignored). Precedence: function argument > config.local.json > config.json > environment variable > built-in default. The one exception is base_url, where an environment variable wins so a container can redirect the endpoint without editing this file.",
+  "llm": {
+    "_comment": "provider: 'deepseek' or 'openai'. Leave blank to auto-detect.",
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "api_key": "",
+    "timeout": 60,
+    "max_tokens": 4096,
+    "max_retries": 3
+  },
+  "runtime": {
+    "_comment": "inventory_file is resolved next to this config file.",
+    "inventory_file": "wireless_mouse_ecosystem.json",
+    "top_n": 2,
+    "max_results": 10,
+    "verbose": false
+  },
+  "logging": {
+    "_comment": "level: DEBUG/INFO/WARNING/ERROR. directory: null for console only.",
+    "level": "INFO",
+    "directory": "logs",
+    "console": true,
+    "colour": null,
+    "llm_payloads": true,
+    "session": null
+  }
+}

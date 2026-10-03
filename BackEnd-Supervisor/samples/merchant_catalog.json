@@ -1,0 +1,39 @@
+{
+  "merchants": {
+    "merchant-001": {
+      "merchantName": "Kensington Direct",
+      "merchantCreditScore": 90,
+      "buyerFeedbackScore": 78
+    },
+    "merchant-002": {
+      "merchantName": "Budget Gadgets HK",
+      "merchantCreditScore": 95,
+      "buyerFeedbackScore": 82
+    },
+    "merchant-003": {
+      "merchantName": "Prime Office Supply",
+      "merchantCreditScore": 68,
+      "buyerFeedbackScore": 44
+    },
+    "merchant-004": {
+      "merchantName": "Unknown Deals Ltd",
+      "merchantCreditScore": 55,
+      "buyerFeedbackScore": 50
+    },
+    "merchant-005": {
+      "merchantName": "New Merchant (risk data not on file)"
+    }
+  },
+  "productMerchants": {
+    "WM-022": "merchant-001",
+    "WM-031": "merchant-004",
+    "WM-041": "merchant-002",
+    "WM-055": "merchant-002",
+    "WM-077": "merchant-004",
+    "WM-102": "merchant-001",
+    "WM-150": "merchant-005",
+    "WM-200": "merchant-001",
+    "WM-201": "merchant-002",
+    "WM-202": "merchant-003"
+  }
+}
