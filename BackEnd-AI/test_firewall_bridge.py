@@ -131,6 +131,7 @@ class TestFinalReport(unittest.TestCase):
                 "request": "a mouse",
                 "status": "OK",
                 "cap_enforced": "800.00",
+                "security_rejections": 2,
                 "best_options": [
                     {"rank": rank, "product_id": f"WM-{rank:03d}",
                      "product_name": f"Mouse {rank}", "brand": "MX",
@@ -218,6 +219,7 @@ class TestFinalReport(unittest.TestCase):
             self._base_report(1), self._bridge_outcome([1])
         )
         self.assertEqual(report["report_type"], "authorized_selection")
+        self.assertEqual(report["security_rejections"], 2)
 
 
 class TestEndToEnd(unittest.TestCase):

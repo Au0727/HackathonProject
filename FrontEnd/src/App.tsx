@@ -75,6 +75,7 @@ function App() {
   const [audits, setAudits] = useState<AuditEvent[]>([]);
   const [busy, setBusy] = useState(false);
   const [interpretError, setInterpretError] = useState<string | null>(null);
+  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
   const activeProductId = products.some((product) => product.id === selectedId)
     ? selectedId
     : products[0]?.id;
@@ -120,7 +121,7 @@ function App() {
   const loadScenario = (id: ScenarioId) => {
     const next = scenarios.find((s) => s.id === id)!;
     setScenarioId(id); setInstruction(next.request); setMandate(blankMandate(next.mandate.id)); setManualOverrides(emptyOverrides()); setAdvancedOpen(false); setSelectedId(next.productId);
-    setTransaction(null); setAuthorization(null); setAudits([]); setInterpretError(null); setStep('mandate');
+    setTransaction(null); setAuthorization(null); setAudits([]); setInterpretError(null); setSecurityWarning(null); setStep('mandate');
   };
 
   /**
@@ -134,6 +135,7 @@ function App() {
   const activateMandate = async () => {
     setBusy(true);
     setInterpretError(null);
+    setSecurityWarning(null);
     try {
       const hasManualOverrides = Object.values(manualOverrides).some((value) => value.trim() !== '');
       const priceLimit = manualOverrides.maxPerTransaction.trim()
@@ -171,12 +173,22 @@ function App() {
       appendAudit('MANDATE_INTERPRETED', 'AGENT', 'The agent interpreted your instruction into a structured mandate.', { input: { instruction, manualOverrides: hasManualOverrides ? manualOverrides : null }, mandate: nextMandate });
       setStep('shop');
       try {
-        const recommendations = await commerceGateway.search();
-        setProducts(recommendations);
-        setSelectedId(recommendations[0]?.id ?? '');
+        const searchResult = await commerceGateway.search();
+        setProducts(searchResult.products);
+        setSelectedId(searchResult.products[0]?.id ?? '');
+        if (searchResult.securityRejections > 0) {
+          const count = searchResult.securityRejections;
+          setSecurityWarning(
+            `${count} product listing${count === 1 ? ' was' : 's were'} excluded after a potential AI-manipulation attempt was detected.`,
+          );
+        }
+        if (!searchResult.products.length && searchResult.stopReason) {
+          setInterpretError(searchResult.stopReason);
+        }
       } catch (error) {
         setProducts([]);
         setSelectedId('');
+        setSecurityWarning(null);
         setInterpretError(error instanceof Error ? error.message : 'The shopping pipeline could not return an authorized product.');
       }
     } catch (err) {
@@ -242,7 +254,7 @@ function App() {
       <DemoBar active={scenarioId} onSelect={loadScenario} />
       <StepNav current={step} onChange={setStep} />
       {step === 'mandate' && <MandateSetup instruction={instruction} setInstruction={setInstruction} advancedOpen={advancedOpen} setAdvancedOpen={setAdvancedOpen} manualOverrides={manualOverrides} setManualOverrides={setManualOverrides} busy={busy} error={interpretError} onContinue={activateMandate} />}
-      {step === 'shop' && <ShoppingWorkspace products={products} instruction={instruction} mandate={mandate} selectedId={activeProductId ?? ''} setSelectedId={setSelectedId} error={interpretError} busy={busy} onCancel={() => setStep('mandate')} onConfirm={confirmPurchase} />}
+      {step === 'shop' && <ShoppingWorkspace products={products} instruction={instruction} mandate={mandate} selectedId={activeProductId ?? ''} setSelectedId={setSelectedId} error={interpretError} securityWarning={securityWarning} busy={busy} onCancel={() => setStep('mandate')} onConfirm={confirmPurchase} />}
       {step === 'result' && <ResultScreen transaction={transaction} product={selected ?? catalog[0]} authorization={authorization} onAudit={() => setStep('audit')} onReset={() => loadScenario(scenarioId)} />}
       {step === 'audit' && <AuditLog events={audits} />}
     </main>
@@ -328,13 +340,14 @@ function MandateSetup({ instruction, setInstruction, advancedOpen, setAdvancedOp
  * SCREEN 2 — Agent Shopping Workspace.
  * A dominant primary recommendation sits beside collapsed alternatives.
  */
-function ShoppingWorkspace({ products, instruction, mandate, selectedId, setSelectedId, error, busy, onCancel, onConfirm }: {
+function ShoppingWorkspace({ products, instruction, mandate, selectedId, setSelectedId, error, securityWarning, busy, onCancel, onConfirm }: {
   products: Product[];
   instruction: string;
   mandate: Mandate;
   selectedId: string;
   setSelectedId: (id: string) => void;
   error: string | null;
+  securityWarning: string | null;
   busy: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -347,6 +360,7 @@ function ShoppingWorkspace({ products, instruction, mandate, selectedId, setSele
       <div className="boundary-card"><ShieldCheck size={19}/><div><strong>{mandate.maxPerTransaction === undefined ? 'No purchase cap extracted' : `${fmt(mandate.maxPerTransaction)} purchase cap`}</strong><span>{mandate.allowedMerchants?.length ? `${mandate.allowedMerchants.length} approved merchant(s)` : 'Merchant restrictions: none'}</span></div></div>
     </div>
     <div className="agent-thinking"><div className="bot-dot"><Bot size={20}/></div><div><span>Agent request</span><p>“{instruction}”</p></div><span className="status-chip purple">Recommendation ready</span></div>
+    {securityWarning && <div className="security-warning" role="status"><ShieldCheck size={15}/><span>{securityWarning}</span></div>}
     {error && <div className="error-note shop-error" role="alert"><AlertTriangle size={17}/><span>{error}</span></div>}
     {picked ? <>
       <div className="product-layout">

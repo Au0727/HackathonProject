@@ -6,7 +6,7 @@
  */
 
 import type { AuditEvent, AuthorizationResult, Mandate, MandateInterpretationInput, Product, Transaction } from '../domain/types';
-import type { AuditRepository, CommerceGateway } from './contracts';
+import type { AuditRepository, CommerceGateway, ShoppingSearchResult } from './contracts';
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 const AUDIT_MONEY_KEYS = new Set([
@@ -37,6 +37,7 @@ type ApiProduct = Omit<Product, 'price' | 'shipping'> & {
 };
 
 type AuthorizedReport = {
+  security_rejections?: number;
   results: Array<{
     best_options?: Array<{
       product_id: string;
@@ -223,18 +224,14 @@ export class HttpCommerceGateway implements CommerceGateway {
     return mandateFromIntent(intent, input, this.defaults);
   }
 
-  async search(maxResults = 10): Promise<Product[]> {
+  async search(maxResults = 10): Promise<ShoppingSearchResult> {
     if (!this.lastIntent) throw new Error('Interpret a mandate before searching the catalog.');
     const report = await requestJson<AuthorizedReport>('/api/shopping/search', {
       method: 'POST',
       body: JSON.stringify({ intent: this.lastIntent, max_results: maxResults }),
     });
     const options = report.results.flatMap((result) => result.best_options ?? []);
-    if (options.length === 0) {
-      const reason = report.halts?.[0]?.reason ?? 'The pipeline did not return an authorized product.';
-      throw new Error(reason);
-    }
-    return options.map((option) => {
+    const products = options.map((option) => {
       productMoney.set(option.product_id, {
         subtotal: option.price,
         shipping: option.shipping_fee,
@@ -254,6 +251,13 @@ export class HttpCommerceGateway implements CommerceGateway {
         source: 'Agentic Commerce pipeline',
       };
     });
+    return {
+      products,
+      securityRejections: report.security_rejections ?? 0,
+      ...(products.length === 0 && report.halts?.[0]?.reason
+        ? { stopReason: report.halts[0].reason }
+        : {}),
+    };
   }
 
   async authorize(mandate: Mandate, transaction: Transaction): Promise<AuthorizationResult> {

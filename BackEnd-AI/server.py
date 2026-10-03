@@ -61,7 +61,7 @@ def _current_daily_spent() -> Decimal:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    setup_logging(level="INFO", directory=LOG_DIR, console=False, llm_payloads=False)
+    setup_logging(level="INFO", directory=LOG_DIR, console=True, llm_payloads=False)
     yield
 
 
@@ -193,6 +193,27 @@ def shopping_search(body: SearchRequest) -> JSONResponse:
     except Exception as exc:
         logger.exception("Shopping pipeline failed")
         raise HTTPException(status_code=500, detail="Shopping pipeline failed") from exc
+    choices = [
+        {
+            "product_id": option.get("product_id"),
+            "product_name": option.get("product_name"),
+            "rank": option.get("rank"),
+        }
+        for result in report.get("results", [])
+        for option in result.get("best_options", [])
+    ]
+    logger.info(
+        "Shopping decision: %d firewall-authorized choice(s): %s",
+        len(choices),
+        choices,
+    )
+    security_rejections = report.get("security_rejections", 0)
+    if security_rejections:
+        logger.warning(
+            "Security filter rejected %s product listing(s) for potential "
+            "prompt injection.",
+            security_rejections,
+        )
     return _json_response(report)
 
 

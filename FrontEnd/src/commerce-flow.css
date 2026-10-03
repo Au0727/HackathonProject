@@ -143,6 +143,20 @@
   flex: 0 0 auto;
 }
 
+.security-warning {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0;
+  color: #82550f;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.security-warning svg {
+  flex: 0 0 auto;
+}
+
 .primary-pricing {
   display: grid;
   grid-template-columns: 0.8fr 0.8fr 1fr 1.2fr;

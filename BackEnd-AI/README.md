@@ -632,6 +632,13 @@ Two files per run in `logs/`:
 - `llm-<session>.jsonl` — one JSON record per model call: the exact prompt, the
   parsed reply, latency and token usage.
 
+When the API is running for the frontend demo, the backend console also prints
+the system/user messages sent to the model, its reply, the selected
+firewall-authorized choices, and a count of listings rejected for suspected
+prompt injection. Obvious credential strings are redacted in console traces.
+The frontend surfaces that rejection count as a brief status note, not as a
+primary result.
+
 **The API key is never written to any log.** The request body is logged without
 the `Authorization` header, and credential-looking keys are redacted before
 anything is written.
@@ -675,9 +682,11 @@ guarantee.
 - **Keyword search is lexical, not semantic.** `CATEGORY_SYNONYMS` bridges known
   categories; queries outside that map rely on a substring fallback and may
   surface a looser match.
-- **The security scanner is pattern-based.** It catches the families it knows and
-  normalises obvious evasions; a novel phrasing may pass. It is a filter, not a
-  proof.
+- **The security scanner is pattern-based.** It catches known attack families
+  and normalises markup, common Unicode look-alikes, zero-width characters and
+  spaced lettering. A novel or encoded payload may still pass; this is a
+  defense-in-depth filter, not proof that content is safe. Listings it flags are
+  rejected before their text is sent to the optional LLM auditor.
 - **Merchant risk bands in the generated directory are illustrative**, authored
   by us so the demo has full coverage. Substitute a real risk source before any
   production use.

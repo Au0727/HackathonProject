@@ -353,6 +353,10 @@ def build_final_report(
         "authorization": outcome.get("authorization", {}),
         "requests_made": base_report.get("requests_made", 0),
         "requests_with_options": 0,
+        "security_rejections": sum(
+            int(result.get("security_rejections", 0) or 0)
+            for result in base_report.get("results", [])
+        ),
         "results": [],
     }
 

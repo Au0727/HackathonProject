@@ -23,6 +23,12 @@
 
 import type { AuditEvent, AuthorizationResult, Mandate, MandateInterpretationInput, Product, Transaction } from '../domain/types';
 
+export type ShoppingSearchResult = {
+  products: Product[];
+  securityRejections: number;
+  stopReason?: string;
+};
+
 /**
  * CommerceGateway — every operation the UI needs from the "backend".
  * Method names mirror the product flow:

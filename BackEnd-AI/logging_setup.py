@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -67,6 +68,14 @@ def redact(value: Any) -> Any:
     Applied to every dict written to the JSONL log, so a key cannot reach disk
     even if a caller passes a whole request body by mistake.
     """
+    if isinstance(value, str):
+        value = re.sub(
+            r"(?i)\b(api[_ -]?key|authorization|access[_ -]?token|password|secret)"
+            r"[\"']?(\s*[:=]\s*)(?:bearer\s+)?[\"']?[^\s,;\"']+",
+            r"\1\2" + REDACTED,
+            value,
+        )
+        return re.sub(r"\bsk-[A-Za-z0-9_-]{12,}\b", REDACTED, value)
     if isinstance(value, dict):
         return {
             key: (REDACTED if key.casefold() in SECRET_KEYS else redact(item))
@@ -201,7 +210,7 @@ class LLMInteractionLog:
                 "completion_tokens": usage.get("completion_tokens"),
                 "total_tokens": usage.get("total_tokens"),
             },
-            "error": error,
+            "error": redact(error),
         }
         if usage.get("prompt_tokens"):
             self.totals["prompt_tokens"] += int(usage["prompt_tokens"])
