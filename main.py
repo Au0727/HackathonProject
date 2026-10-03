@@ -23,6 +23,8 @@ BACKEND_URL = "http://127.0.0.1:8000"
 FRONTEND_URL = "http://127.0.0.1:5173"
 STARTUP_TIMEOUT_SECONDS = 60
 
+# print(f"ROOT:{ROOT}")
+# print(f"Backend_dir:{BACKEND_DIR}")
 
 def find_backend_python() -> Path:
     """Select an interpreter that can import the API's required packages."""
@@ -36,12 +38,14 @@ def find_backend_python() -> Path:
     seen: set[Path] = set()
     for candidate in candidates:
         resolved = candidate.resolve()
+        # print(f"resolved:{resolved}")
         if resolved in seen or not resolved.is_file():
             continue
+        # print(f"{resolved} is seen and chosen")
         seen.add(resolved)
         check = subprocess.run(
             [
-                str(resolved),
+                str(candidate),
                 "-c",
                 "import fastapi, uvicorn",
             ],
@@ -51,7 +55,7 @@ def find_backend_python() -> Path:
             check=False,
         )
         if check.returncode == 0:
-            return resolved
+            return candidate
     raise RuntimeError(
         "Could not find a Python environment with FastAPI and Uvicorn. "
         "Install them with `python -m pip install -r BackEnd-AI/requirements.txt`."
