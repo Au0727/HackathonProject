@@ -389,8 +389,8 @@ function ShoppingWorkspace({ products, instruction, mandate, selectedId, setSele
       </div>
     </> : <div className="empty-state card"><ShoppingBag/><h2>No selectable product</h2><p>Review the error above or return to revise your request.</p></div>}
     <div className="workflow-actions">
-      <button className="cancel-action" onClick={onCancel} disabled={busy}>Cancel <X size={18}/></button>
-      <button className="confirm-action" onClick={onConfirm} disabled={busy || !picked}>{busy ? 'Checking and processing…' : 'Confirm'} <Circle size={18}/></button>
+      <button className="cancel-action" onClick={onCancel} disabled={busy}>Cancel(Return) <X size={18}/></button>
+      <button className="confirm-action" onClick={onConfirm} disabled={busy || !picked}>{busy ? 'Checking and processing…' : 'Confirm(Pay)'} <Circle size={18}/></button>
     </div>
   </section>;
 }
