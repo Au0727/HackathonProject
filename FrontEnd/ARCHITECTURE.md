@@ -44,7 +44,10 @@ This implementation is for prototyping. In production, authorization and payment
 
 ### Real backend adapter — `src/services/httpGateway.ts`
 
-Scaffold implementing the same `CommerceGateway` over `fetch`. Fill in endpoint paths and switch the `App.tsx` import to go live. `src/services/index.ts` offers an env-driven switch (`VITE_USE_MOCKS`).
+The active `CommerceGateway` implementation calls the Python API with `fetch`.
+It translates decimal-string money and sends the complete user mandate with
+search requests. `src/services/mockGateway.ts` remains for isolated local tests;
+it is not the adapter used by the app.
 
 ### Fixtures — `src/data`
 
@@ -64,11 +67,10 @@ A real implementation must reject invalid transitions and re-check the mandate i
 
 ## 4. Backend integration point
 
-See **[BACKEND_INTEGRATION.md](./BACKEND_INTEGRATION.md)** for the full guide. Summary:
-
-1. Implement `src/services/httpGateway.ts` against your endpoints.
-2. Change the import in `src/App.tsx` from `./services/mockGateway` to `./services/httpGateway` (or set `VITE_USE_MOCKS=false` and import from `./services`).
-3. Keep every request/response JSON in the shapes from `src/domain/types.ts`.
+See **[BACKEND_INTEGRATION.md](./BACKEND_INTEGRATION.md)** for endpoint
+contracts. The active frontend calls the Python API; see the repository
+integration guide for the cross-module sequence, diagnostics and data-source
+replacement points.
 
 ### Recommended API safeguards
 

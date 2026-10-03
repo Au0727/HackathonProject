@@ -69,11 +69,15 @@ src/
 
 `src/App.tsx` uses `HttpCommerceGateway` by default. It loads products from
 `GET /api/catalog`, sends the unchanged user instruction to
-`POST /api/mandates/interpret`, then submits the returned structured intent to
-`POST /api/shopping/search`. Authorization, simulated payment, and audit
-operations use the corresponding Python API routes implemented by
+`POST /api/mandates/interpret`, then submits the structured intent and complete
+mandate to `POST /api/shopping/search`. Authorization, simulated payment, and
+audit operations use the corresponding Python API routes implemented by
 `BackEnd-AI/server.py`. Set `VITE_API_BASE_URL` when the API is not at
 `http://localhost:8000`.
+
+The current backend inventory and merchant-risk catalogue are demonstration
+data. Their replacement points and the flow/logging map are recorded in the
+repository's [integration guide](../INTEGRATION.md).
 
 **Full instructions, JSON shapes, endpoint table, and the LLM / user-decision wiring are in [BACKEND_INTEGRATION.md](./BACKEND_INTEGRATION.md).**
 

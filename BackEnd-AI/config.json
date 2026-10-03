@@ -10,7 +10,7 @@
     "max_retries": 3
   },
   "runtime": {
-    "_comment": "inventory_file is resolved next to this config file.",
+    "_comment": "inventory_file is resolved next to this config file. The committed wireless_mouse_ecosystem.json is demo inventory; replace it or point to a validated live-data adapter for real products.",
     "inventory_file": "wireless_mouse_ecosystem.json",
     "top_n": 2,
     "max_results": 10,

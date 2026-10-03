@@ -9,6 +9,9 @@ The shopping agent upstream understands the request, searches products and ranks
 plans. This component does none of that. It receives up to three **already-ranked** purchase
 plans plus trusted merchant risk data and answers one question per plan:
 
+For the merged frontend/BackEnd-AI/supervisor flow, demonstration-data status,
+and integration diagnostics, see the repository [integration guide](../INTEGRATION.md).
+
 ```text
 APPROVE  -> return this plan immediately and stop
 ASK      -> the user must confirm before this plan can be authorized

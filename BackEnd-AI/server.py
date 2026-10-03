@@ -3,6 +3,12 @@
 Run from this directory with ``uvicorn server:app --reload --port 8000``.
 Configured model APIs are preferred; failed or unavailable API calls fall back
 to the deterministic offline implementation.
+
+Endpoints: GET /api/catalog; POST /api/mandates/interpret and
+/api/shopping/search; POST /api/authorization/evaluate; PATCH
+/api/mandates/{id}/revoke; POST /api/transactions/{id}/payment/{start,complete};
+GET/POST/DELETE /api/audit/logs. Operational messages use the commerce_api
+logger, configured for terminal and pipeline-file output at startup.
 """
 
 from __future__ import annotations
@@ -61,7 +67,8 @@ def _current_daily_spent() -> Decimal:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    setup_logging(level="INFO", directory=LOG_DIR, console=False, llm_payloads=False)
+    setup_logging(level="INFO", directory=LOG_DIR, console=True, llm_payloads=False)
+    logger.info("Commerce API started; logs are written to %s", LOG_DIR)
     yield
 
 
@@ -83,6 +90,7 @@ class InterpretRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     intent: StructuredIntent
+    mandate: dict[str, Any] = Field(default_factory=dict)
     max_results: int = Field(default=10, ge=1, le=50)
 
 
@@ -123,6 +131,8 @@ def _json_default(value: Any) -> Any:
 
 def _money_string(values: dict[str, Any], field: str, default: str | None = None) -> Decimal:
     value = values.get(field, default)
+    if value is None:
+        value = default
     if not isinstance(value, str) or not re.fullmatch(r"-?\d+(?:\.\d{1,2})?", value):
         raise ValueError(f"{field} must be a decimal string with at most two fractional digits")
     try:
@@ -155,30 +165,143 @@ def _merchant_catalog():
     return MerchantCatalog.load(DEFAULT_MERCHANT_DIR)
 
 
+def _product_category(product: Any) -> str:
+    """Return the product's validated category (legacy demo rows default it)."""
+    return str(getattr(product, "category", "Computer Accessories"))
+
+
+def _mandate_is_active(mandate: dict[str, Any]) -> tuple[bool, str]:
+    """Fail closed on an expired, invalid, or server-recorded revoked mandate."""
+    mandate_id = str(mandate.get("id", ""))
+    if mandate.get("revokedAt") or _revoked_mandates.get(mandate_id):
+        return False, "Mandate was revoked."
+    expiry = mandate.get("expiresAt")
+    if not expiry:
+        return True, ""
+    try:
+        parsed = datetime.fromisoformat(str(expiry).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return False, "Mandate has an invalid expiry."
+    if parsed <= datetime.now(timezone.utc):
+        return False, "Mandate has expired."
+    return True, ""
+
+
+def _api_decision(supervisor_status: str) -> str:
+    """Map the supervisor verdict to the API contract; unsupported ASK fails closed."""
+    return "ALLOW" if supervisor_status == "APPROVE" else "DENY"
+
+
 @app.post("/api/mandates/interpret")
 def interpret_mandate(body: InterpretRequest) -> JSONResponse:
     """Extract and return the validated StructuredIntent without altering text."""
+    logger.info("Mandate interpretation started (prompt_chars=%d)", len(body.prompt))
     try:
         intent = _pipeline().extract_intent(body.prompt)
     except Exception as exc:
         logger.exception("Mandate interpretation failed")
         raise HTTPException(status_code=502, detail="Mandate interpretation failed") from exc
+    logger.info(
+        "Mandate interpretation completed (keywords=%d, cap=%s)",
+        len(intent.product_keywords),
+        intent.max_total_cap or intent.max_base_price,
+    )
     return _json_response(intent.model_dump(mode="json"))
 
 
 @app.post("/api/shopping/search")
 def shopping_search(body: SearchRequest) -> JSONResponse:
     """Run search, compliance, rank, firewall authorization and reduction."""
+    mandate = body.mandate
+    active, inactive_reason = _mandate_is_active(mandate)
+    if not active:
+        logger.info("Search rejected inactive mandate id=%s reason=%s", mandate.get("id", ""), inactive_reason)
+        return _json_response({"results": [], "halts": [{"reason": inactive_reason}]})
+
+    allowed_merchants = mandate.get("allowedMerchants")
+    allowed_categories = mandate.get("allowedCategories")
+    if allowed_merchants is None:
+        allowed_merchants = []
+    if allowed_categories is None:
+        allowed_categories = []
+    if not isinstance(allowed_merchants, list) or not all(
+        isinstance(value, str) for value in allowed_merchants
+    ):
+        raise HTTPException(status_code=422, detail="allowedMerchants must be a list of strings")
+    if not isinstance(allowed_categories, list) or not all(
+        isinstance(value, str) for value in allowed_categories
+    ):
+        raise HTTPException(status_code=422, detail="allowedCategories must be a list of strings")
+
+    try:
+        products = load_products(default_inventory_path(load_config()))
+        merchant_catalog = _merchant_catalog()
+        permitted_product_ids = {
+            product.product_id
+            for product in products
+            if (
+                not allowed_categories
+                or _product_category(product) in allowed_categories
+            )
+            and (
+                not allowed_merchants
+                or merchant_catalog.merchant_id_for_product(product.product_id) in allowed_merchants
+            )
+        }
+        if not permitted_product_ids:
+            reason = "No inventory products satisfy the mandate's category and merchant restrictions."
+            logger.info("Search returned no products after mandate filters")
+            return _json_response({"results": [], "halts": [{"reason": reason}]})
+        max_per_transaction = format(
+            _money_string(
+                mandate,
+                "maxPerTransaction",
+                firewall_bridge.DEFAULT_MAX_PER_TRANSACTION,
+            ),
+            "f",
+        )
+        max_daily_spend = format(
+            _money_string(
+                mandate,
+                "maxDailySpend",
+                firewall_bridge.DEFAULT_MAX_DAILY_SPEND,
+            ),
+            "f",
+        )
+        confirmation_threshold = format(
+            _money_string(
+                mandate,
+                "requiresConfirmationAbove",
+                firewall_bridge.DEFAULT_CONFIRMATION_THRESHOLD,
+            ),
+            "f",
+        )
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     prompt = body.intent.raw_request
     if not prompt:
         prompt = " ".join(body.intent.product_keywords)
+    logger.info(
+        "Shopping search started (max_results=%d, eligible_products=%d, per_transaction=%s, daily=%s)",
+        body.max_results,
+        len(permitted_product_ids),
+        max_per_transaction,
+        max_daily_spend,
+    )
     try:
         report, _ = firewall_bridge.run(
             [prompt],
             intents=[body.intent],
+            allowed_product_ids=permitted_product_ids,
             options=min(body.max_results, 3),
             max_results=body.max_results,
             keep=2,
+            max_per_transaction=max_per_transaction,
+            max_daily_spend=max_daily_spend,
+            confirmation_threshold=confirmation_threshold,
             config=load_config(),
             progress=False,
             offline=False,
@@ -193,6 +316,11 @@ def shopping_search(body: SearchRequest) -> JSONResponse:
     except Exception as exc:
         logger.exception("Shopping pipeline failed")
         raise HTTPException(status_code=500, detail="Shopping pipeline failed") from exc
+    logger.info(
+        "Shopping search completed (authorized_requests=%d, halt_count=%d)",
+        report.get("requests_with_options", 0),
+        len(report.get("halts", [])),
+    )
     return _json_response(report)
 
 
@@ -200,27 +328,43 @@ def shopping_search(body: SearchRequest) -> JSONResponse:
 def get_catalog() -> JSONResponse:
     """Serve the trusted backend inventory in the frontend Product shape."""
     try:
-        products = load_products(default_inventory_path(load_config()))
+        inventory_path = default_inventory_path(load_config())
+        products = load_products(inventory_path)
+        merchant_catalog = _merchant_catalog()
         merchant_ids = {
-            product.product_id: f"brand-{product.brand.casefold().replace(' ', '-')}"
+            product.product_id: merchant_catalog.merchant_id_for_product(product.product_id)
             for product in products
+        }
+        if any(merchant_id is None for merchant_id in merchant_ids.values()):
+            raise ValueError("At least one inventory product has no trusted merchant mapping.")
+        merchant_names = {
+            product_id: (
+                (
+                    merchant_catalog.record_for(merchant_id).merchant_name
+                    or merchant_id
+                )
+                if merchant_catalog.record_for(merchant_id) is not None
+                else merchant_id
+            )
+            for product_id, merchant_id in merchant_ids.items()
         }
         result = [
             {
                 "id": product.product_id,
                 "name": product.product_name,
-                "category": "Computer Accessories",
+                "category": _product_category(product),
                 "merchantId": merchant_ids[product.product_id],
-                "merchantName": f"{product.brand} Direct (auto-mapped)",
+                "merchantName": merchant_names[product.product_id],
                 "price": str(product.price),
                 "shipping": str(product.shipping_fee),
                 "currency": "HKD",
                 "rating": 0,
                 "description": product.description,
-                "source": "BackEnd-AI wireless mouse inventory",
+                "source": f"BackEnd-AI inventory: {inventory_path.name}",
             }
             for product in sorted(products, key=lambda item: item.product_id)
         ]
+        logger.info("Catalog served (%d products)", len(result))
     except Exception as exc:
         logger.exception("Catalog could not be loaded")
         raise HTTPException(status_code=503, detail="Catalog could not be loaded") from exc
@@ -240,7 +384,6 @@ def _evaluate_authorization_result(payload: TransactionRequest) -> dict[str, Any
     money = Money.parse
     now = datetime.now(timezone.utc)
 
-    expiry = mandate.get("expiresAt")
     mandate_id = str(mandate.get("id", ""))
     revoked = mandate.get("revokedAt") or _revoked_mandates.get(mandate_id)
     checks: list[dict[str, Any]] = []
@@ -250,16 +393,8 @@ def _evaluate_authorization_result(payload: TransactionRequest) -> dict[str, Any
             {"id": rule_id, "label": rule_id.replace("_", " ").title(), "passed": passed, "detail": detail}
         )
 
-    active = True
-    if expiry:
-        try:
-            parsed_expiry = datetime.fromisoformat(str(expiry).replace("Z", "+00:00"))
-            if parsed_expiry.tzinfo is None:
-                parsed_expiry = parsed_expiry.replace(tzinfo=timezone.utc)
-            active = parsed_expiry > now
-        except (TypeError, ValueError):
-            active = False
-    add("EXPIRY", active, "Mandate is active." if active else "Mandate is expired or has an invalid expiry.")
+    active, inactive_reason = _mandate_is_active(mandate)
+    add("EXPIRY", active, "Mandate is active." if active else inactive_reason)
     not_revoked = not bool(revoked)
     add("REVOCATION", not_revoked, "Mandate has not been revoked." if not_revoked else "Mandate was revoked.")
 
@@ -307,9 +442,31 @@ def _evaluate_authorization_result(payload: TransactionRequest) -> dict[str, Any
             "ruleChecks": checks,
         }
 
+    allowed_categories = mandate.get("allowedCategories")
+    approved_merchants = mandate.get("allowedMerchants")
+    if allowed_categories is None:
+        allowed_categories = []
+    if approved_merchants is None:
+        approved_merchants = []
+    if (
+        not isinstance(allowed_categories, list)
+        or not all(isinstance(value, str) for value in allowed_categories)
+        or not isinstance(approved_merchants, list)
+        or not all(isinstance(value, str) for value in approved_merchants)
+    ):
+        add("MANDATE_DATA", False, "Mandate category and merchant restrictions must be string lists.")
+        return {
+            "decision": "DENY",
+            "reason": checks[-1]["detail"],
+            "failedRules": [checks[-1]["id"]],
+            "evaluatedAt": now.isoformat(),
+            "mandateId": mandate_id,
+            "ruleChecks": checks,
+        }
+
     category_allowed = (
         not mandate.get("allowedCategories")
-        or "Computer Accessories" in mandate["allowedCategories"]
+        or _product_category(product) in allowed_categories
     )
     add(
         "CATEGORY",
@@ -321,7 +478,6 @@ def _evaluate_authorization_result(payload: TransactionRequest) -> dict[str, Any
 
     catalog = _merchant_catalog()
     trusted_merchant_id = catalog.merchant_id_for_product(product_id)
-    approved_merchants = mandate.get("allowedMerchants") or []
     merchant_allowed = (
         trusted_merchant_id is not None
         and (not approved_merchants or trusted_merchant_id in approved_merchants)
@@ -360,22 +516,29 @@ def _evaluate_authorization_result(payload: TransactionRequest) -> dict[str, Any
         total=money(str(expected_total)),
         currency=Currency.HKD,
     )
-    default_total = transaction.get("total", "0.00")
     authorization = UserAuthorization(
         max_per_transaction=money(
-            str(_money_string(mandate, "maxPerTransaction", default_total))
+            str(_money_string(
+                mandate,
+                "maxPerTransaction",
+                firewall_bridge.DEFAULT_MAX_PER_TRANSACTION,
+            ))
         ),
         max_daily_spend=money(
             str(
                 _money_string(
                     mandate,
                     "maxDailySpend",
-                    format(daily_spent + expected_total, "f"),
+                    firewall_bridge.DEFAULT_MAX_DAILY_SPEND,
                 )
             )
         ),
         confirmation_threshold=money(
-            str(_money_string(mandate, "requiresConfirmationAbove", default_total))
+            str(_money_string(
+                mandate,
+                "requiresConfirmationAbove",
+                firewall_bridge.DEFAULT_CONFIRMATION_THRESHOLD,
+            ))
         ),
     )
     context = AuthorizationContext(
@@ -399,12 +562,13 @@ def _evaluate_authorization_result(payload: TransactionRequest) -> dict[str, Any
             }
         )
     failed = [item["id"] for item in checks if not item["passed"]]
-    if status == "APPROVE":
-        decision = "ALLOW"
-    elif status == "ASK":
-        decision = "ASK"
-    else:
-        decision = "DENY"
+    decision = _api_decision(status)
+    logger.info(
+        "Authorization evaluated (transaction=%s, decision=%s, failed_rules=%d)",
+        transaction.get("id", ""),
+        decision,
+        len(failed),
+    )
     return {
         "decision": decision,
         "reason": evaluation.reason,
@@ -423,7 +587,22 @@ def _authorization_result(payload: TransactionRequest) -> dict[str, Any]:
 def evaluate_authorization(body: TransactionRequest) -> JSONResponse:
     """Compatibility route for the frontend's explicit policy-evaluation step."""
     try:
-        return _json_response(_authorization_result(body))
+        result = _authorization_result(body)
+        transaction_id = str(body.transaction.get("id", ""))
+        with _daily_spend_lock:
+            if result.get("decision") == "ALLOW" and transaction_id:
+                _authorized_transactions[transaction_id] = {
+                    "mandate": dict(body.mandate),
+                    "transaction": dict(body.transaction),
+                }
+            elif transaction_id:
+                _authorized_transactions.pop(transaction_id, None)
+        logger.info(
+            "Authorization snapshot %s (transaction_id=%s)",
+            "stored" if result.get("decision") == "ALLOW" else "not stored",
+            transaction_id,
+        )
+        return _json_response(result)
     except (ValueError, KeyError, InvalidOperation) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
@@ -433,6 +612,23 @@ def evaluate_authorization(body: TransactionRequest) -> JSONResponse:
 
 _payment_transactions: dict[str, dict[str, Any]] = {}
 _revoked_mandates: dict[str, str] = {}
+_authorized_transactions: dict[str, dict[str, Any]] = {}
+
+
+def _same_transaction_snapshot(expected: dict[str, Any], submitted: dict[str, Any]) -> bool:
+    """Compare immutable transaction fields while allowing lifecycle status changes."""
+    fields = (
+        "id",
+        "productId",
+        "merchantId",
+        "subtotal",
+        "shipping",
+        "tax",
+        "total",
+        "currency",
+        "createdAt",
+    )
+    return all(expected.get(field) == submitted.get(field) for field in fields)
 
 
 @app.patch("/api/mandates/{mandate_id}/revoke")
@@ -449,6 +645,7 @@ def revoke_mandate(mandate_id: str, body: RevocationRequest) -> JSONResponse:
     value = revoked_at.astimezone(timezone.utc).isoformat()
     with _daily_spend_lock:
         recorded = _revoked_mandates.setdefault(mandate_id, value)
+    logger.info("Mandate revoked (mandate_id=%s)", mandate_id)
     return _json_response({"id": mandate_id, "revokedAt": recorded})
 
 
@@ -459,8 +656,20 @@ def start_payment(transaction_id: str, transaction: dict[str, Any]) -> JSONRespo
     existing = _payment_transactions.get(transaction_id)
     if existing and existing.get("status") in {"COMPLETED", "CANCELLED"}:
         return _json_response(existing)
+    authorization = _authorized_transactions.get(transaction_id)
+    if authorization is None:
+        raise HTTPException(status_code=403, detail="Transaction has no server-side ALLOW decision")
+    if not _same_transaction_snapshot(authorization["transaction"], transaction):
+        raise HTTPException(status_code=409, detail="Transaction differs from the authorized snapshot")
+    verdict = _evaluate_authorization_result(
+        TransactionRequest(mandate=authorization["mandate"], transaction=transaction)
+    )
+    if verdict["decision"] != "ALLOW":
+        _authorized_transactions.pop(transaction_id, None)
+        raise HTTPException(status_code=403, detail=verdict["reason"])
     pending = {**transaction, "status": "PAYMENT_PENDING"}
     _payment_transactions[transaction_id] = pending
+    logger.info("Simulated payment started (transaction_id=%s)", transaction_id)
     return _json_response(pending)
 
 
@@ -473,14 +682,27 @@ def complete_payment(transaction_id: str, body: TransactionRequest) -> JSONRespo
         return _json_response(pending)
     if str(body.transaction.get("id", "")) != transaction_id:
         raise HTTPException(status_code=400, detail="Transaction id does not match URL")
+    authorization = _authorized_transactions.get(transaction_id)
+    if authorization is None:
+        raise HTTPException(status_code=403, detail="Transaction has no server-side authorization snapshot")
+    if (
+        not _same_transaction_snapshot(authorization["transaction"], body.transaction)
+        or not _same_transaction_snapshot(pending, body.transaction)
+    ):
+        raise HTTPException(status_code=409, detail="Transaction differs from the authorized snapshot")
     global _daily_spent
     with _daily_spend_lock:
-        verdict = _evaluate_authorization_result(body)
-        status = "CANCELLED" if verdict["decision"] == "DENY" else "COMPLETED"
+        # Reuse the mandate accepted at authorization time; do not trust a
+        # client to relax its limits when completing payment.
+        verdict = _evaluate_authorization_result(
+            TransactionRequest(mandate=authorization["mandate"], transaction=body.transaction)
+        )
+        status = "CANCELLED" if verdict["decision"] != "ALLOW" else "COMPLETED"
         completed = {**pending, "status": status}
         _payment_transactions[transaction_id] = completed
         if status == "COMPLETED":
             _daily_spent += _money_string(body.transaction, "total", "0.00")
+    logger.info("Simulated payment %s (transaction_id=%s)", status.lower(), transaction_id)
     return _json_response(completed)
 
 
@@ -535,7 +757,9 @@ def _audit_events() -> list[dict[str, Any]]:
 
 @app.get("/api/audit/logs")
 def get_audit_logs() -> JSONResponse:
-    return _json_response(_audit_events())
+    events = _audit_events()
+    logger.info("Audit events loaded (%d)", len(events))
+    return _json_response(events)
 
 
 @app.post("/api/audit/logs", status_code=201)
@@ -543,6 +767,7 @@ def append_audit_log(event: AuditInput) -> JSONResponse:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     with FRONTEND_AUDIT_PATH.open("a", encoding="utf-8") as stream:
         stream.write(event.model_dump_json() + "\n")
+    logger.info("Frontend audit event stored (event_type=%s, event_id=%s)", event.eventType, event.id)
     return _json_response({"stored": True}, status_code=201)
 
 
@@ -550,6 +775,7 @@ def append_audit_log(event: AuditInput) -> JSONResponse:
 def clear_audit_logs() -> JSONResponse:
     if FRONTEND_AUDIT_PATH.exists():
         FRONTEND_AUDIT_PATH.write_text("", encoding="utf-8")
+    logger.info("Frontend audit log cleared")
     return _json_response({"cleared": True})
 
 

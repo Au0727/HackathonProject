@@ -4,17 +4,17 @@
  * ============================================================================
  * PURPOSE
  *   Each entry fully describes one repeatable exhibition scenario: the user's
- *   natural-language request, a PRE-PARSED Mandate (this stands in for LLM
- *   output until POST /api/mandates/interpret exists), and the product to
- *   propose. The Demo Mode bar in the UI loads these fixtures.
+ *   natural-language request, a pre-parsed demo Mandate, and a demo product
+ *   ID. The active app uses the request text but obtains intent, catalog
+ *   candidates, and authorization from the HTTP API; the pre-parsed mandate
+ *   and product IDs are retained for deterministic fixture tests/display.
  *
  * HOW TO ADD A NEW SCENARIO
  *   1. Add the id to `ScenarioId` in domain/types.ts.
  *   2. Add an entry below with request + mandate + productId.
  *   The Demo Mode bar renders automatically from this array.
  *
- * NOTE ON THE LLM: in the real system the mandate is produced by your LLM
- * endpoint from `request`; here it is hard-coded so demos are deterministic.
+ * NOTE: entries in this file are demo/test data, not live user mandates.
  * ============================================================================
  */
 

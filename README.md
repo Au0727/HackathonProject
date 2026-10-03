@@ -24,6 +24,8 @@ algorithm, and API documentation is in the
 [backend README](./BackEnd-AI/README.md),
 [firewall README](./BackEnd-Supervisor/README.md), and
 [frontend integration guide](./FrontEnd/BACKEND_INTEGRATION.md).
+The single cross-module reference for data flow, demonstration-data replacement
+points, and diagnostics is [INTEGRATION.md](./INTEGRATION.md).
 
 ## Run the whole application
 

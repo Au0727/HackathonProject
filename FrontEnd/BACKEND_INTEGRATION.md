@@ -15,14 +15,15 @@ Everything the frontend needs from "the backend" is declared in one interface:
 export interface CommerceGateway {
   getCatalog(): Promise<Product[]>;
   interpretMandate(input: MandateInterpretationInput): Promise<Mandate>;
+  search(mandate: Mandate, maxResults?: number): Promise<Product[]>;
   authorize(mandate: Mandate, transaction: Transaction): Promise<AuthorizationResult>;
   startPayment(transaction: Transaction): Promise<Transaction>;
   completePayment(transaction: Transaction, mandate: Mandate): Promise<Transaction>;
 }
 ```
 
-`HttpCommerceGateway` also exposes `search()` and `revokeMandate()` for the
-pipeline search and server-recorded revocation steps.
+`HttpCommerceGateway` also exposes `revokeMandate()` for the API route; the
+current UI does not expose a revoke control.
 
 The app currently instantiates its HTTP gateway:
 
@@ -40,17 +41,19 @@ The mock adapter remains available for isolated local tests.
 |---|---|---|---|
 | `getCatalog()` | `GET /api/catalog` | — | `Product[]` (money fields are decimal strings on the wire) |
 | `interpretMandate(input)` | `POST /api/mandates/interpret` | `{ "prompt": string }` | `StructuredIntent`; gateway maps it to `Mandate` |
-| `search()` | `POST /api/shopping/search` | `{ "intent": StructuredIntent, "max_results": number }` | Authorized selection report; `halts[]` carries stop reasons |
+| `search()` | `POST /api/shopping/search` | `{ "intent": StructuredIntent, "mandate": Mandate, "max_results": number }` | Authorized selection report; `halts[]` carries stop reasons |
 | `authorize(mandate, transaction)` | `POST /api/authorization/evaluate` | `{ "mandate": Mandate, "transaction": Transaction }` | `AuthorizationResult` |
 | `startPayment(transaction)` | `POST /api/transactions/:id/payment/start` | `Transaction` | `Transaction` (`status: "PAYMENT_PENDING"`) |
 | `revokeMandate(mandate)` | `PATCH /api/mandates/:id/revoke` | `{ "revokedAt": string }` | `{ "id": string, "revokedAt": string }` |
-| `completePayment(transaction, mandate)` | `POST /api/transactions/:id/payment/complete` | `{ "transaction": Transaction, "mandate": Mandate }` | `Transaction` (`COMPLETED` or `CANCELLED`) |
+| `completePayment(transaction, mandate)` | `POST /api/transactions/:id/payment/complete` | `{ "transaction": Transaction, "mandate": Mandate }` | `Transaction` (`COMPLETED` or `CANCELLED`); server uses its stored ALLOW mandate snapshot |
 | Audit read/write/clear | `GET/POST/DELETE /api/audit/logs` | `AuditEvent` for POST | `AuditEvent[]` for GET |
 
-The natural-language prompt is sent unchanged. The separate UI spending limit
-is merged into the structured intent; it is not appended to or used to rewrite
-the prompt. Monetary values are transported as decimal strings. UI-facing
-shapes are defined in **`src/domain/types.ts`**.
+The natural-language prompt is sent unchanged. A UI total limit is merged into
+the intent's total cap without changing a separate base-price cap. The complete
+structured mandate is also sent to search so its transaction/day limits,
+category, merchant, and expiry restrictions apply before recommendations are
+returned. Monetary values are transported as decimal strings. UI-facing shapes
+are defined in **`src/domain/types.ts`**.
 
 ---
 
@@ -157,19 +160,15 @@ Allowed `status` values: `PROPOSED`, `AUTHORIZED`, `CHECKOUT`, `PAYMENT_PENDING`
 
 ### 3.1 Replace the product catalog
 
-**Now:** `src/data/catalog.ts` exports a hard-coded array.
-**To connect real data:** implement `getCatalog()` in `httpGateway.ts` and return your DB rows mapped to `Product[]`. Nothing else changes; the UI already renders whatever `getCatalog()` returns.
+**Now:** `GET /api/catalog` maps the configured BackEnd-AI inventory and the
+supervisor's trusted merchant mapping into `Product[]`. The frontend fixture at
+`src/data/catalog.ts` remains demo/test data.
+**To connect a real catalogue:** replace the inventory source selected by
+`BackEnd-AI/config.json` and supply trustworthy product category, merchant,
+price, shipping, and observation values through `BackEnd-AI/server.py`'s
+`get_catalog()` mapper. The UI-facing contract remains `Product[]`.
 
-```ts
-// src/services/httpGateway.ts
-async getCatalog() {
-  const res = await fetch(`${this.baseUrl}/api/catalog`);
-  if (!res.ok) throw new Error('Catalog request failed');
-  return (await res.json()) as Product[];
-}
-```
-
-`App.tsx` loads this catalog into state using `commerceGateway.getCatalog()`.
+`App.tsx` loads the catalog using `commerceGateway.getCatalog()`.
 
 ### 3.2 Replace the pre-parsed mandate with real LLM output
 
@@ -190,18 +189,23 @@ Frontend audit events are appended to `POST /api/audit/logs`; `GET
 
 ## 4. Integrating the LLM module (instruction → mandate)
 
-The LLM's job is **interpretation only**. It converts free text into a `Mandate`. It never authorizes money.
+The LLM's job is **interpretation only**. It returns a validated
+`StructuredIntent`, not spending authority; deterministic server code and the
+supervisor make authorization decisions.
 
 ### The exact data sent on button click
 
-The LLM module needs exactly two things from the user. Both live in `App.tsx` state on **Screen 1**:
+The interpretation endpoint receives the natural-language instruction. The
+optional UI per-purchase total limit is retained by the gateway and combined
+with a parsed total cap after interpretation:
 
 - `instruction` — the text from the natural-language textarea
 - `priceLimit` — the "Maximum per purchase" number field
 
-When the user clicks **"Activate mandate"**, the handler sends the instruction
-unchanged as `prompt`. The separate spending limit is applied to the returned
-structured intent without modifying the user prompt.
+When the user clicks **"Activate mandate"**, the instruction is sent unchanged
+as `prompt`. The UI total limit does not rewrite it. A natural-language base
+price cap remains a base-price cap; only a total cap or explicit UI total limit
+becomes the mandate's final-total limit.
 
 ```ts
 // src/App.tsx — runs when "Activate mandate" is clicked
@@ -209,13 +213,11 @@ const activateMandate = async () => {
   setBusy(true);
   setInterpretError(null);
   try {
-    const parsed = await commerceGateway.interpretMandate({
-      instruction,                          // from the textarea
-      priceLimit: mandate.maxPerTransaction // from the price field
-    });
-    setMandate(parsed);          // the returned structured mandate fills the policy card
-    appendAudit('MANDATE_INTERPRETED', 'AGENT', 'The agent interpreted your instruction into a spending mandate.', { input, mandate: parsed });
-    setStep('shop');             // advance to the agent workspace
+    const parsed = await commerceGateway.interpretMandate({ instruction, priceLimit });
+    const nextMandate = { ...parsed, ...explicitOverrides };
+    setMandate(nextMandate);
+    const recommendations = await commerceGateway.search(nextMandate);
+    setProducts(recommendations);
   } catch (err) {
     setInterpretError('The agent could not interpret that instruction. Please try rephrasing it.');
   } finally {
@@ -227,17 +229,19 @@ const activateMandate = async () => {
 ### Request / response
 
 ```
-User types instruction + price limit, clicks "Activate mandate"
+User enters instruction and optional policy overrides
         │
         ▼
 POST /api/mandates/interpret
   body: { "prompt": "Buy me a mouse under HK$300" }
         │   (server returns a validated StructuredIntent)
         ▼
-Gateway maps the StructuredIntent to Mandate, then calls /api/shopping/search
+Gateway combines the intent and mandate, then sends
+{ intent, mandate, max_results } to /api/shopping/search
         │
         ▼
-Frontend stores it (setMandate) and shows the structured policy
+Server filters inventory and applies transaction/day limits before returning
+supervisor-approved candidates
 ```
 
 ### Two interchangeable implementations (same interface)
@@ -263,33 +267,21 @@ The app uses the HTTP gateway by default.
 
 ## 5. Sending user decisions to the backend
 
-Every user action in the demo already routes through a handler in `App.tsx`. These are your integration points. Each one is marked `[BACKEND-SEND]` in the code.
+The currently implemented UI actions route through `App.tsx`. The revoke API
+exists but is not presented as a user action in this compressed flow.
 
 | User action | UI location | Handler in `App.tsx` | What to send to backend |
 |---|---|---|---|
 | Types an instruction | Screen 1 textarea | `setInstruction` | (kept in state until Activate) |
 | **Activates mandate** | "Activate mandate" button | `activateMandate` | `POST /api/mandates/interpret` → save the `Mandate` |
-| **Proposes purchase** | "Propose purchase" button | `propose` | Builds a transaction proposal; the server re-prices during authorization |
-| **Runs authorization** | "Run authorization" button | `evaluate` | `POST /api/authorization/evaluate` |
-| **Proceeds to payment** | "Proceed to simulated payment" | `checkout` | `POST /api/transactions/:id/payment/start` |
-| **Revokes authority** | "Revoke authorization" button | `revoke` | Re-authorizes and completes with the revoked mandate; server cancels |
+| **Confirms a purchase** | Confirm purchase control | `confirmPurchase` | Builds a proposal and calls `POST /api/authorization/evaluate` |
+| **Starts simulated payment** | Same confirm flow after ALLOW | `confirmPurchase` | `POST /api/transactions/:id/payment/start` |
+| **Completes simulated payment** | Same confirm flow | `confirmPurchase` | `POST /api/transactions/:id/payment/complete` |
 | Replays a scenario | "Replay scenario" button | `loadScenario` | (local reset; no backend needed) |
 | Opens audit log | "View audit trail" button | `setStep('audit')` | `GET /api/audit/logs` |
 
-### The critical ordering rule (revocation)
-
-Revocation must be recorded **server-side before** payment can complete. Sequence:
-
-```
-1. User clicks "Revoke authorization"
-2. Frontend/back: PATCH /api/mandates/:id/revoke   → sets revokedAt
-3. Backend:       re-evaluate the pending transaction
-4. Backend:       transition to CANCELLED (never COMPLETED)
-```
-
-The HTTP gateway calls the revoke route before re-authorizing and completing the
-pending payment. The demo server records revoked mandate IDs in process memory
-and checks that registry again at completion. A production deployment must
+The demo server records revoked mandate IDs in process memory and checks that
+registry during search and final authorization. A production deployment must
 persist revocations and transaction state atomically.
 
 ---
@@ -309,6 +301,12 @@ persist revocations and transaction state atomically.
 - [x] HTTP gateway is the active adapter in `src/App.tsx`.
 - [x] Catalog, mandate interpretation, search, authorization, simulated payment,
   mandate revocation, and audit routes are implemented by `BackEnd-AI/server.py`.
+- [x] Search receives the complete mandate and applies filters and spending
+  limits before recommendations are returned.
+- [x] The unsupported supervisor `ASK` outcome is mapped to DENY; it cannot
+  become a successful simulated payment.
+- [x] Payment start/completion require the server-side authorization snapshot
+  and reject changed transaction amounts or product identity.
 - [x] Transactions are re-priced from the trusted inventory and re-authorized
   before simulated payment completion.
 - [x] Validate changes with `npm run typecheck && npm test && npm run build`.

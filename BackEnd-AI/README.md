@@ -22,6 +22,9 @@ Two components that answer two different questions:
 Neither component duplicates the other. The agent never decides whether money may
 move; the firewall never looks at the product catalogue.
 
+For the merged app's cross-module request flow, demo-data inventory, and
+debugging/log locations, see the repository [integration guide](../INTEGRATION.md).
+
 ---
 
 ## Contents
@@ -99,6 +102,7 @@ python firewall_bridge.py --json-only "..."   # agent -> firewall, JSON only
 
 python test_intent_to_purchase.py             # 105 tests
 python test_firewall_bridge.py                # 20 tests
+python test_server.py                         # HTTP adapter contract tests
 cd ../BackEnd-Supervisor && python -m unittest discover -s tests -t .   # 158 tests
 ```
 

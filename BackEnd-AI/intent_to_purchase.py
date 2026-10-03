@@ -28,6 +28,8 @@ Design rules enforced throughout
 
 Run `python intent_to_purchase.py` for a self-contained demo.
 Requires: pydantic>=2.  No network access is needed for the offline demo.
+The HTTP API also calls this module to interpret POST /api/mandates/interpret
+and to search/rank inventory candidates before the supervisor bridge.
 """
 
 from __future__ import annotations
@@ -181,13 +183,14 @@ class BundlePromotion(BaseModel):
 
 
 class Product(BaseModel):
-    """One row of the mock inventory, validated strictly."""
+    """One inventory row, validated strictly; current rows are demo data."""
 
     model_config = ConfigDict(extra="forbid")
 
     product_id: str = Field(min_length=1)
     brand: str = Field(min_length=1)
     product_name: str = Field(min_length=1)
+    category: str = Field(default="Computer Accessories", min_length=1)
     description: str = ""
     price: Decimal
     shipping_fee: Decimal = Decimal("0.00")

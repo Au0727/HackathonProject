@@ -21,6 +21,10 @@ So the pipeline is:
                (report JSON)             APPROVE / ASK / DENY
 ```
 
+The FastAPI caller uses this bridge for ``POST /api/shopping/search``; it also
+supports a standalone CLI. Candidate and stage diagnostics use the
+``commerce_bridge`` logger and the pipeline stage printer.
+
 The firewall consumes the agent's report through its own
 ``ShoppingReportAdapter`` — this bridge never re-implements that parsing. It
 writes the intermediate report, hands the file to the adapter, and turns the
@@ -48,6 +52,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 import time
 from decimal import Decimal
@@ -74,6 +79,8 @@ from intent_to_purchase import (  # noqa: E402  (path set up above)
     load_products,
 )
 from logging_setup import glyph, setup_logging, stage as log_stage  # noqa: E402
+
+logger = logging.getLogger("commerce_bridge")
 
 #: Where the bridge keeps its trusted merchant directory and reports.
 #: The directory lives beside the supervisor's own catalogue, in the sibling
@@ -208,6 +215,13 @@ def build_merchant_directory(
             f"merchant dir     {glyph('arrow')} mapped {added_products} product(s) to "
             f"{added_merchants} new merchant(s) in {output_path.name}"
         )
+    if added_products:
+        logger.info(
+            "Trusted merchant directory extended (products=%d, merchants=%d, path=%s)",
+            added_products,
+            added_merchants,
+            output_path,
+        )
     return directory, stats
 
 
@@ -288,6 +302,13 @@ def authorize_report(
             request_evaluations.append(evaluation)
             merchant_by_rank[plan.rank] = plan
             status = getattr(evaluation.status, "value", str(evaluation.status))
+            logger.info(
+                "Firewall candidate evaluated (request=%s rank=%d product=%s decision=%s)",
+                request_report.request_id,
+                plan.rank,
+                plan.product_id,
+                status,
+            )
             if status == "APPROVE":
                 approved.append(plan.rank)
             if echo:
@@ -451,6 +472,7 @@ def run(
     max_daily_spend: str = DEFAULT_MAX_DAILY_SPEND,
     confirmation_threshold: str = DEFAULT_CONFIRMATION_THRESHOLD,
     daily_spent: str = "0.00",
+    allowed_product_ids: Optional[set[str]] = None,
     progress: bool = True,
     offline: bool = False,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
@@ -466,6 +488,17 @@ def run(
     config = config or load_config()
     inventory = default_inventory_path(config)
     products = load_products(inventory)
+    if allowed_product_ids is not None:
+        products = [product for product in products if product.product_id in allowed_product_ids]
+    logger.info(
+        "Shopping pipeline started (requests=%d, inventory_products=%d, options=%d, max_results=%d)",
+        len(requests),
+        len(products),
+        options,
+        max_results,
+    )
+    if not products:
+        raise BridgeError("No inventory products satisfy the supplied mandate filters.")
     llm = build_llm(config, allow_network=not offline)
 
     if progress:
@@ -488,7 +521,7 @@ def run(
 
     report_dir = DEFAULT_REPORT_DIR
     report_dir.mkdir(parents=True, exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
+    stamp = f"{time.strftime('%Y%m%d-%H%M%S')}-{time.time_ns() % 1_000_000_000:09d}"
     report_path = report_dir / f"agent-report-{stamp}.json"
     report_path.write_text(
         json.dumps(base_json, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -541,7 +574,11 @@ def run(
         decision_status = getattr(getattr(decision, "status", None), "value", "")
         status = result.status
         if not result.stop_reason and decision_status:
-            status = "DENIED_BY_FIREWALL" if decision_status == "DENY" else decision_status
+            status = (
+                "DENIED_BY_FIREWALL"
+                if decision_status in {"DENY", "ASK"}
+                else decision_status
+            )
         return {
             "request_id": result.request_id,
             "request": result.request,
@@ -556,6 +593,11 @@ def run(
     ]
     final["merchant_directory"] = stats
     final["agent_report"] = report_path.name
+    logger.info(
+        "Shopping pipeline completed (authorized_requests=%d, halts=%d)",
+        final["requests_with_options"],
+        len(final["halts"]),
+    )
 
     if progress:
         log_stage(
@@ -595,8 +637,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
 
     stream = sys.stderr if args.json_only else sys.stdout
-    setup_logging(level="WARNING" if args.json_only else "INFO",
-                  directory=None, console=False)
+    setup_logging(
+        level="WARNING" if args.json_only else "INFO",
+        directory=None,
+        console=True,
+        stream=sys.stderr if args.json_only else sys.stdout,
+    )
     requests = args.requests or ["Find me a Kensington wireless mouse under $800 total."]
 
     try:

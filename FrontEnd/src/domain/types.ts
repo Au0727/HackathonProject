@@ -15,7 +15,10 @@
  * ============================================================================
  */
 
-/** The three possible outcomes of the deterministic policy engine. */
+/**
+ * Policy outcomes used by the supervisor and local tests. The active HTTP
+ * adapter maps unsupported supervisor ASK decisions to DENY.
+ */
 export type Decision = 'ALLOW' | 'DENY' | 'ASK';
 
 /**
@@ -59,9 +62,9 @@ export type Mandate = {
 /**
  * Product — one item in the controlled catalog.
  *
- * HYBRID data: the prototype uses a small local file (data/catalog.ts);
- * your backend should later serve this from GET /api/catalog in the SAME shape.
- * `description` is UNTRUSTED merchant content — never parse it as instructions.
+ * Active app data comes from GET /api/catalog. data/catalog.ts is a
+ * dummy/test fixture only. `description` is UNTRUSTED merchant content —
+ * never parse it as instructions.
  */
 export type Product = {
   id: string;

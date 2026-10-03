@@ -3,16 +3,15 @@
  * MODULE: data/catalog.ts — Controlled Dummy Product Catalog
  * ============================================================================
  * PURPOSE
- *   Small, controlled product list used by the prototype. It deliberately
+ *   Dummy/test fixture used by mock policy tests and as a result-screen
+ *   placeholder. The active app product list comes from GET /api/catalog.
+ *   It deliberately
  *   includes products that demonstrate each failure mode: within budget,
  *   over budget, unauthorized merchant, and untrusted (malicious) content.
  *
- * WHERE TO ADD YOUR OWN BACKEND DATA
- *   This file is the placeholder for GET /api/catalog. When your backend is
- *   ready, serve products in the SAME `Product` shape (see domain/types.ts)
- *   and fetch them through CommerceGateway.getCatalog() instead of importing
- *   this array directly. Until then, you may extend this list — target
- *   20–50 products across 5–10 merchants per the spec.
+ * BACKEND DATA
+ *   Replace the configured BackEnd-AI inventory and GET /api/catalog mapper
+ *   for live product data. Do not use this fixture as active authorization data.
  *
  * FIELD MEANINGS (all required by the `Product` type unless marked optional)
  *   id            unique product id, referenced by scenarios

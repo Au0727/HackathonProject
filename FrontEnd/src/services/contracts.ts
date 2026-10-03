@@ -4,18 +4,12 @@
  * ============================================================================
  * PURPOSE
  *   This file is THE integration seam between the frontend and your backend.
- *   The UI (App.tsx) only calls these interfaces — it never talks to mock data
- *   or HTTP directly. That means you can swap the mock adapter for your real
- *   backend by changing ONE import, without touching any screen.
+ *   The UI (App.tsx) calls these service contracts. The active implementation
+ *   is httpGateway.ts; mockGateway.ts remains available to isolated tests.
  *
  * HOW TO CONNECT YOUR BACKEND (summary; full guide in BACKEND_INTEGRATION.md)
- *   1. Create `src/services/httpGateway.ts` implementing `CommerceGateway`
- *      with fetch() calls to your API endpoints.
- *   2. In `App.tsx`, change:
- *        import { commerceGateway } from './services/mockGateway';
- *      to:
- *        import { commerceGateway } from './services/httpGateway';
- *   3. Keep the request/response JSON in the shapes from domain/types.ts.
+ *   Keep request and response JSON aligned with domain/types.ts and the
+ *   endpoint contracts documented in BACKEND_INTEGRATION.md.
  *
  * EACH METHOD maps 1:1 to a suggested backend endpoint (see comments below).
  * ============================================================================
@@ -26,13 +20,13 @@ import type { AuditEvent, AuthorizationResult, Mandate, MandateInterpretationInp
 /**
  * CommerceGateway — every operation the UI needs from the "backend".
  * Method names mirror the product flow:
- *   catalog → mandate interpretation → authorization → payment start → payment completion
+ *   catalog → mandate interpretation/search → authorization → simulated payment
  */
 export interface CommerceGateway {
   /**
    * Get the controlled product catalog.
    *   Backend: GET /api/catalog          → Product[]
-   *   Current: returns the local dummy file src/data/catalog.ts
+   *   Active implementation: GET /api/catalog through httpGateway.ts.
    */
   getCatalog(): Promise<Product[]>;
 
@@ -44,8 +38,8 @@ export interface CommerceGateway {
    * the "Activate mandate" button.
    *
    *   Backend: POST /api/mandates/interpret
-   *     request  body: { "instruction": string, "priceLimit": number }
-   *     response body: Mandate (the LLM proposes; your server validates)
+   *     request body: { "prompt": string }
+   *     response: StructuredIntent, mapped to a frontend Mandate by httpGateway
    *
    *   Security: the LLM output must be validated server-side against a schema;
    *   it is a PROPOSAL, never spending authority by itself.
@@ -53,11 +47,20 @@ export interface CommerceGateway {
   interpretMandate(input: MandateInterpretationInput): Promise<Mandate>;
 
   /**
+   * Search the configured inventory under the interpreted mandate.
+   *   Backend: POST /api/shopping/search
+   *     body: { intent, mandate, max_results }
+   *   Returned options have passed the agent and supervisor pipeline.
+   */
+  search(mandate: Mandate, maxResults?: number): Promise<Product[]>;
+
+  /**
    * Ask the DETERMINISTIC policy engine to evaluate a proposed transaction
    * against the mandate. This is the core of the product.
    *   Backend: POST /api/authorization/evaluate
    *     request  body: { "mandate": Mandate, "transaction": Transaction }
-   *     response body: AuthorizationResult (decision + per-rule checks)
+   *   response body: AuthorizationResult (decision + per-rule checks).
+   *   The integrated HTTP API maps unsupported supervisor ASK to DENY.
    *   The engine evaluates transaction.total (price + shipping), NOT just price.
    */
   authorize(mandate: Mandate, transaction: Transaction): Promise<AuthorizationResult>;
@@ -83,7 +86,7 @@ export interface CommerceGateway {
  * AuditRepository — append-only record of every important decision.
  * In the prototype, events live in React state; for production, your backend
  * should own this store so audit records are tamper-evident and survive refresh.
- *   Backend: GET /api/audit → AuditEvent[] ; POST /api/audit → append server-side
+ *   Backend: GET/POST/DELETE /api/audit/logs
  */
 export interface AuditRepository {
   list(): Promise<AuditEvent[]>;

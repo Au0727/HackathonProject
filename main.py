@@ -1,6 +1,8 @@
-"""Launch the Agentic Commerce frontend and backend together.
+"""Launch both halves of the Agentic Commerce demo.
 
 Run ``python main.py`` from any working directory. Press Ctrl+C to stop both.
+The launcher starts the Vite UI at http://127.0.0.1:5173 and the Python API at
+http://127.0.0.1:8000; browser API calls are handled by BackEnd-AI/server.py.
 """
 
 from __future__ import annotations
@@ -23,9 +25,6 @@ BACKEND_URL = "http://127.0.0.1:8000"
 FRONTEND_URL = "http://127.0.0.1:5173"
 STARTUP_TIMEOUT_SECONDS = 60
 
-# print(f"ROOT:{ROOT}")
-# print(f"Backend_dir:{BACKEND_DIR}")
-
 def find_backend_python() -> Path:
     """Select an interpreter that can import the API's required packages."""
     candidates = [
@@ -38,10 +37,8 @@ def find_backend_python() -> Path:
     seen: set[Path] = set()
     for candidate in candidates:
         resolved = candidate.resolve()
-        # print(f"resolved:{resolved}")
         if resolved in seen or not resolved.is_file():
             continue
-        # print(f"{resolved} is seen and chosen")
         seen.add(resolved)
         check = subprocess.run(
             [
@@ -145,7 +142,7 @@ def main() -> int:
         node = ensure_project_files()
         vite_cli = FRONTEND_DIR / "node_modules" / "vite" / "bin" / "vite.js"
 
-        print("Starting Agentic Commerce...")
+        print(f"Starting Python API at {BACKEND_URL}...")
         processes["Python API"] = subprocess.Popen(
             [
                 str(python),
@@ -159,6 +156,7 @@ def main() -> int:
             ],
             cwd=BACKEND_DIR,
         )
+        print(f"Starting Vite frontend at {FRONTEND_URL}...")
         processes["Vite frontend"] = subprocess.Popen(
             [
                 str(node),

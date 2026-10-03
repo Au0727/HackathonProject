@@ -124,6 +124,15 @@ export class MockCommerceGateway implements CommerceGateway {
   async getCatalog() { await wait(); return catalog; }
   /** Local LLM stand-in: parses { instruction, priceLimit } → Mandate. Real: POST /api/mandates/interpret */
   async interpretMandate(input: MandateInterpretationInput): Promise<Mandate> { await wait(400); return interpretMandateLocally(input, this.defaults); }
+  /** Dummy inventory search applying local mandate filters. Real: POST /api/shopping/search */
+  async search(mandate: Mandate, maxResults = 10) {
+    await wait();
+    return catalog.filter((product) =>
+      (!mandate.allowedCategories?.length || mandate.allowedCategories.includes(product.category))
+      && (!mandate.allowedMerchants?.length || mandate.allowedMerchants.includes(product.merchantId))
+      && (mandate.maxPerTransaction === undefined || product.price + product.shipping <= mandate.maxPerTransaction),
+    ).slice(0, maxResults);
+  }
   /** Dummy: local evaluatePolicy. Real: POST /api/authorization/evaluate */
   async authorize(mandate: Mandate, transaction: Transaction) { await wait(); return evaluatePolicy(mandate, transaction); }
   /** Dummy: instant transition. Real: POST /api/transactions/:id/payment/start */

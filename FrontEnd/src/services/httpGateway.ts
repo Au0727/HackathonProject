@@ -1,5 +1,8 @@
 /**
  * HTTP adapter for the Python Agentic Commerce API.
+ * Endpoints: GET /api/catalog; POST /api/mandates/interpret,
+ * /api/shopping/search, /api/authorization/evaluate, and payment routes;
+ * PATCH /api/mandates/{id}/revoke; GET/POST/DELETE /api/audit/logs.
  *
  * All monetary values are sent as decimal strings. They are converted to the
  * frontend's numeric display model only after a response has been received.
@@ -56,6 +59,7 @@ type AuthorizedReport = {
 type ApiError = { detail?: string | { msg?: string }[] };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? 'GET';
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
@@ -67,9 +71,13 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'network request failed';
+    if (import.meta.env.DEV) console.warn(`[commerce-http] ${method} ${path} network error`, reason);
     throw new Error(`Cannot reach the commerce API at ${BASE_URL}: ${reason}`);
   }
 
+  if (import.meta.env.DEV) {
+    console.info(`[commerce-http] ${method} ${path} -> ${response.status}`);
+  }
   if (!response.ok) {
     let detail = `${response.status} ${response.statusText}`;
     try {
@@ -163,7 +171,6 @@ function mandateFromIntent(
   const caps = [
     input.priceLimit === undefined ? undefined : decimalString(input.priceLimit),
     intent.max_total_cap ?? undefined,
-    intent.max_base_price ?? undefined,
   ].filter((value): value is string => value !== undefined);
   const limit = caps.length
     ? Number(caps.reduce((lowest, cap) => decimalCents(cap) < decimalCents(lowest) ? cap : lowest))
@@ -207,7 +214,6 @@ export class HttpCommerceGateway implements CommerceGateway {
     const caps = [
       input.priceLimit === undefined ? undefined : decimalString(input.priceLimit),
       intent.max_total_cap ?? undefined,
-      intent.max_base_price ?? undefined,
     ].filter((value): value is string => value !== undefined);
     if (caps.length) {
       intent.max_total_cap = caps.reduce(
@@ -223,11 +229,15 @@ export class HttpCommerceGateway implements CommerceGateway {
     return mandateFromIntent(intent, input, this.defaults);
   }
 
-  async search(maxResults = 10): Promise<Product[]> {
+  async search(mandate: Mandate, maxResults = 10): Promise<Product[]> {
     if (!this.lastIntent) throw new Error('Interpret a mandate before searching the catalog.');
     const report = await requestJson<AuthorizedReport>('/api/shopping/search', {
       method: 'POST',
-      body: JSON.stringify({ intent: this.lastIntent, max_results: maxResults }),
+      body: JSON.stringify({
+        intent: this.lastIntent,
+        mandate: apiMandate(mandate),
+        max_results: maxResults,
+      }),
     });
     const options = report.results.flatMap((result) => result.best_options ?? []);
     if (options.length === 0) {

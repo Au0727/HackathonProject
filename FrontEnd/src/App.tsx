@@ -13,9 +13,10 @@
  *   audit event. See BACKEND_INTEGRATION.md §5 for the mapping table.
  *
  * BACKEND CONNECTION
- *   The HTTP gateway is the only backend integration surface. Search results,
- *   authorization, simulated payment, and audit records are obtained through
- *   the Python API; presentation and flow state remain in this component.
+ *   The HTTP gateway is the only backend integration surface. It calls
+ *   GET /api/catalog, POST /api/mandates/interpret and /api/shopping/search,
+ *   POST /api/authorization/evaluate and transaction payment routes, and the
+ *   audit routes. UI diagnostics are written to the browser DevTools console.
  * ============================================================================
  */
 
@@ -30,6 +31,12 @@ import { auditRepository, HttpCommerceGateway } from './services/httpGateway';
 const fmt = (n: number) => new Intl.NumberFormat('en-HK', { style: 'currency', currency: 'HKD', maximumFractionDigits: 0 }).format(n);
 const stamp = () => new Date().toISOString();
 const makeId = (prefix: string) => `${prefix}-${Date.now().toString(36)}`;
+const logUi = (message: string, details?: Record<string, unknown>) => {
+  if (import.meta.env.DEV) console.info(`[commerce-ui] ${message}`, details ?? '');
+};
+const logUiError = (message: string, error: unknown) => {
+  if (import.meta.env.DEV) console.warn(`[commerce-ui] ${message}`, error);
+};
 
 type StepId = 'mandate' | 'shop' | 'result' | 'audit';
 type ManualOverrides = {
@@ -69,7 +76,7 @@ function App() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<ManualOverrides>(emptyOverrides);
   const [selectedId, setSelectedId] = useState(scenario.productId);
-  const [products, setProducts] = useState<Product[]>(catalog);
+  const [products, setProducts] = useState<Product[]>([]);
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [authorization, setAuthorization] = useState<AuthorizationResult | null>(null);
   const [audits, setAudits] = useState<AuditEvent[]>([]);
@@ -92,16 +99,22 @@ function App() {
     let active = true;
     void commerceGateway.getCatalog().then((remoteProducts) => {
       if (!active || remoteProducts.length === 0) return;
+      logUi('catalog loaded', { productCount: remoteProducts.length });
       setProducts(remoteProducts);
       setSelectedId((current) =>
         remoteProducts.some((product) => product.id === current) ? current : remoteProducts[0].id,
       );
     }).catch((error: unknown) => {
+      logUiError('catalog load failed', error);
       if (active) setInterpretError(error instanceof Error ? error.message : 'Could not load the backend catalog.');
     });
     void auditRepository.list().then((events) => {
-      if (active) setAudits(events);
+      if (active) {
+        logUi('audit events loaded', { eventCount: events.length });
+        setAudits(events);
+      }
     }).catch((error: unknown) => {
+      logUiError('audit load failed', error);
       if (active) setInterpretError(error instanceof Error ? error.message : 'Could not load backend audit events.');
     });
     return () => { active = false; };
@@ -112,6 +125,7 @@ function App() {
     const event: AuditEvent = { id: makeId('audit'), transactionId, timestamp: stamp(), eventType, actor, summary, data };
     setAudits((prev) => [event, ...prev]);
     void auditRepository.append(event).catch((error: unknown) => {
+      logUiError(`audit append failed: ${event.eventType}`, error);
       setInterpretError(error instanceof Error ? error.message : 'Could not persist the audit event.');
     });
   };
@@ -171,10 +185,12 @@ function App() {
       appendAudit('MANDATE_INTERPRETED', 'AGENT', 'The agent interpreted your instruction into a structured mandate.', { input: { instruction, manualOverrides: hasManualOverrides ? manualOverrides : null }, mandate: nextMandate });
       setStep('shop');
       try {
-        const recommendations = await commerceGateway.search();
+        const recommendations = await commerceGateway.search(nextMandate);
+        logUi('search completed', { recommendationCount: recommendations.length });
         setProducts(recommendations);
         setSelectedId(recommendations[0]?.id ?? '');
       } catch (error) {
+        logUiError('search failed', error);
         setProducts([]);
         setSelectedId('');
         setInterpretError(error instanceof Error ? error.message : 'The shopping pipeline could not return an authorized product.');
@@ -214,6 +230,7 @@ function App() {
     setInterpretError(null);
     try {
       const result = await commerceGateway.authorize(mandate, proposed);
+      logUi('authorization completed', { decision: result.decision, productId: proposed.productId });
       setAuthorization(result);
       appendAudit('POLICY_EVALUATED', 'POLICY_ENGINE', result.reason, { decision: result.decision, failedRules: result.failedRules, ruleChecks: result.ruleChecks, policyVersion: '2026.1' }, proposed.id);
       if (result.decision !== 'ALLOW') {
@@ -225,11 +242,13 @@ function App() {
       setTransaction(pending);
       appendAudit('PAYMENT_PENDING', 'PAYMENT_SIMULATOR', 'Simulated payment is pending. No real money has moved.', { status: pending.status }, pending.id);
       const completed = await commerceGateway.completePayment(pending, mandate);
+      logUi('payment completed', { status: completed.status, transactionId: completed.id });
       setTransaction(completed);
       appendAudit(completed.status === 'COMPLETED' ? 'PAYMENT_COMPLETED' : 'TRANSACTION_CANCELLED', 'PAYMENT_SIMULATOR', completed.status === 'COMPLETED' ? 'Simulated payment completed successfully.' : 'Transaction cancelled before completion.', { status: completed.status, simulated: true }, completed.id);
       if (completed.status === 'COMPLETED' || completed.status === 'CANCELLED') setStep('result');
       else setInterpretError('The simulated payment did not complete.');
     } catch (error) {
+      logUiError('authorization or payment failed', error);
       setInterpretError(error instanceof Error ? error.message : 'Authorization or simulated payment failed.');
     } finally {
       setBusy(false);
