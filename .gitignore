@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+/.wheels/
+
+FrontEnd/node_modules
+FrontEnd/dist
+FrontEnd/.env
+FrontEnd/.env.local
+FrontEnd/.DS_Store
+FrontEnd/coverage
+
+BackEnd-AI/logs
