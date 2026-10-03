@@ -34,6 +34,7 @@ move; the firewall never looks at the product catalogue.
 | `logging_setup.py` | Console/file logging, the LLM interaction log, secret redaction. |
 | `test_intent_to_purchase.py` | 105 tests for the agent. |
 | `test_firewall_bridge.py` | 20 tests for the integration. |
+| `requirements.txt` | One direct dependency (`pydantic`), pinned with its transitive set. |
 | `config.json` | Non-secret settings: provider, model, logging, inventory. Safe to commit. |
 | `config.local.json` | **Your API key.** Git-ignored — never commit or share it. |
 | `wireless_mouse_ecosystem.json` | The 200-row product inventory. |
@@ -45,8 +46,13 @@ move; the firewall never looks at the product catalogue.
 
 ```bash
 cd BackEnd-AI
+pip install -r requirements.txt        # one direct dependency: pydantic
 python main.py "Find me a Kensington wireless mouse under $800 total."
 ```
+
+A vendored copy of the same packages already exists in `lib/`, so the pipeline
+runs without installing anything. On a normal machine `pip install` takes
+precedence and `lib/` is ignored.
 
 Stdout is the JSON and nothing else, so it pipes directly:
 
@@ -479,7 +485,63 @@ configured key made every "offline" test a live model call.
 
 ---
 
-## 10. Configuration
+## 10. Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**One direct dependency: `pydantic`.** Everything else is the Python standard
+library — `urllib.request` for the HTTP call, `argparse` for the CLI, `logging`
+for the log layer, `unittest` for the tests (no pytest needed). The Financial
+Firewall in `../BackEnd-Supervisor` has **zero** dependencies.
+
+### Why the pins are exact
+
+`pydantic` requires an **exact** `pydantic-core` build, and `pydantic-core` ships
+as a compiled extension whose wheel must match your Python's ABI (`cp310`,
+`cp314`, …). Relaxing one pin without the other fails at import:
+
+```text
+SystemError: The installed pydantic-core version (2.49.0) is incompatible with
+the current pydantic version, which requires 2.46.5
+```
+
+So `pydantic==2.13.5` is paired with `pydantic-core==2.46.5` deliberately.
+
+| Package | Pin | Declared requirement |
+|---|---|---|
+| `pydantic` | `2.13.5` | direct |
+| `pydantic-core` | `2.46.5` | `==2.46.5` (exact) |
+| `annotated-types` | `0.8.0` | `>=0.6.0` |
+| `typing-extensions` | `4.16.0` | `>=4.14.1` |
+| `typing-inspection` | `0.4.4` | `>=0.4.2` |
+
+Every pin satisfies what pydantic declares, and each one is the version this code
+was actually verified against — not merely the oldest version that would satisfy
+the constraint.
+
+### Python version
+
+**3.10 or newer.** `pydantic` supports 3.9+, but this project uses PEP 604 unions
+(`list[str] | None`) in `main.py` and `firewall_bridge.py`, which arrived in 3.10.
+Developed and verified on 3.14.5.
+
+### No dependency is needed to stay offline
+
+`python main.py --offline` uses the built-in deterministic rule-based model and
+never touches the network, whether or not an API key is configured.
+
+### Vendored copy
+
+The same packages are already unpacked in `lib/` so the project runs with no
+installation at all. The import bootstrap at the top of `intent_to_purchase.py`
+prefers an interpreter-level `pydantic` and only falls back to `lib/`, so a normal
+`pip install` takes precedence and `lib/` is ignored.
+
+---
+
+## 11. Configuration
 
 `config.json` holds non-secret settings; `config.local.json` holds your API key
 and is git-ignored.
@@ -537,7 +599,7 @@ python main.py "Find me a mouse under $800 total."
 
 ---
 
-## 11. Logging
+## 12. Logging
 
 In `main.py`, stdout is reserved for the JSON and notes go to stderr. The
 underlying CLIs print stage progress on stdout, except `firewall_bridge.py
@@ -555,7 +617,7 @@ anything is written.
 
 ---
 
-## 12. Testing
+## 13. Testing
 
 ```bash
 cd BackEnd-AI
@@ -583,7 +645,7 @@ guarantee.
 
 ---
 
-## 13. Known limitations
+## 14. Known limitations
 
 - **`OfflineRuleBasedLLM` is not an LLM.** It is a deterministic parser good
   enough for the demos and tests. For real language variety, configure an API.

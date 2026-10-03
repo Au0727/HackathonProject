@@ -1,0 +1,59 @@
+# BackEnd-AI - Shopping Agent + Financial Firewall
+#
+#   pip install -r requirements.txt
+#   python main.py "Find me a Kensington wireless mouse under $800 total."
+#
+# ---------------------------------------------------------------------------
+# Direct dependency
+# ---------------------------------------------------------------------------
+pydantic==2.13.5
+
+# ---------------------------------------------------------------------------
+# Transitive dependencies (pulled in by pydantic; pinned for reproducibility)
+# ---------------------------------------------------------------------------
+annotated-types==0.8.0
+pydantic-core==2.46.5
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+
+# ===========================================================================
+# NOTES
+# ===========================================================================
+#
+# WHAT THIS PROJECT ACTUALLY NEEDS
+#   Exactly one direct third-party dependency: pydantic. Everything else is the
+#   Python standard library - urllib.request for the HTTP call, argparse for the
+#   CLI, logging for the log layer, unittest for the tests (no pytest needed).
+#   The Financial Firewall in ../BackEnd-Supervisor has ZERO dependencies.
+#
+# WHY THE VERSIONS ARE PINNED EXACTLY
+#   pydantic requires an EXACT pydantic-core build, and pydantic-core ships as a
+#   compiled extension whose wheel must match your Python's ABI (cp310, cp314...).
+#   A mismatch fails at import time with:
+#
+#       SystemError: The installed pydantic-core version (2.49.0) is
+#       incompatible with the current pydantic version, which requires 2.46.5
+#
+#   So 2.13.5 is paired with pydantic-core 2.46.5 deliberately. Do not relax one
+#   pin without the other.
+#
+#   Verified against: Python 3.14.5, pydantic 2.13.5, pydantic-core 2.46.5.
+#
+# PYTHON VERSION
+#   Requires Python >= 3.10. pydantic itself supports 3.9+, but this project uses
+#   PEP 604 unions (list[str] | None) in main.py and firewall_bridge.py.
+#
+# NO DEPENDENCY IS NEEDED TO STAY OFFLINE
+#   `python main.py --offline` uses the built-in deterministic rule-based model
+#   and never touches the network, whether or not an API key is configured.
+#
+# VENDORED COPY
+#   A vendored copy of the packages above already exists in ./lib so the project
+#   runs with no installation at all. On a normal machine the pip install above
+#   takes precedence and ./lib is ignored - see the import bootstrap at the top
+#   of intent_to_purchase.py.
+#
+# OPTIONAL
+#   pytest is not required; the suites are plain unittest. Install it only if you
+#   prefer its output:
+#       pip install pytest
