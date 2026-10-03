@@ -29,12 +29,13 @@ move; the firewall never looks at the product catalogue.
 | File | Purpose |
 |---|---|
 | `main.py` | **Entry point.** Natural language in, purchase JSON out. |
+| `server.py` | FastAPI HTTP API for the frontend and audit log. |
 | `intent_to_purchase.py` | The agent: intent parsing, search, mandate enforcement, ranking. |
 | `firewall_bridge.py` | Joins the agent to the firewall; reduces 3 candidates to 2 authorized choices. |
 | `logging_setup.py` | Console/file logging, the LLM interaction log, secret redaction. |
 | `test_intent_to_purchase.py` | 105 tests for the agent. |
 | `test_firewall_bridge.py` | 20 tests for the integration. |
-| `requirements.txt` | One direct dependency (`pydantic`), pinned with its transitive set. |
+| `requirements.txt` | Pydantic pins and FastAPI/Uvicorn HTTP server dependencies. |
 | `config.json` | Non-secret settings: provider, model, logging, inventory. Safe to commit. |
 | `config.local.json` | **Your API key.** Git-ignored — never commit or share it. |
 | `wireless_mouse_ecosystem.json` | The 200-row product inventory. |
@@ -46,7 +47,7 @@ move; the firewall never looks at the product catalogue.
 
 ```bash
 cd BackEnd-AI
-pip install -r requirements.txt        # one direct dependency: pydantic
+pip install -r requirements.txt
 python main.py "Find me a Kensington wireless mouse under $800 total."
 ```
 
@@ -69,6 +70,25 @@ python main.py --keep 1 "..."           # return a single recommendation
 python main.py --options 3 "..."        # how many candidates the agent ranks
 python main.py --max-per-transaction 50 "..."   # firewall denies everything
 ```
+
+### HTTP API
+
+Install the server dependencies from `requirements.txt`, then start the API:
+
+```bash
+uvicorn server:app --reload --host 127.0.0.1 --port 8000
+```
+
+The Vite app can then use `http://localhost:8000` as its API base. The API
+provides `POST /api/mandates/interpret`, `POST /api/shopping/search`,
+`GET /api/catalog`, and `GET /api/audit/logs`. Compatibility endpoints for
+per-transaction authorization, mandate revocation, and simulated payment are
+also provided for the frontend flow. With a valid configured DeepSeek key, API
+requests use DeepSeek for mandate interpretation and the optional product trust
+audit. If the key is missing or the API call fails, the agent logs the failure
+and uses its deterministic offline parser/auditor. Search, ranking, budget
+checks, and Financial Firewall authorization remain deterministic either way.
+Payment and daily-spend state are in-memory demo state and reset on restart.
 
 ### The parts, individually
 
@@ -491,10 +511,11 @@ configured key made every "offline" test a live model call.
 pip install -r requirements.txt
 ```
 
-**One direct dependency: `pydantic`.** Everything else is the Python standard
-library — `urllib.request` for the HTTP call, `argparse` for the CLI, `logging`
-for the log layer, `unittest` for the tests (no pytest needed). The Financial
-Firewall in `../BackEnd-Supervisor` has **zero** dependencies.
+The CLI depends on `pydantic`; the HTTP API additionally depends on `fastapi`
+and `uvicorn`. Everything else is the Python standard library —
+`urllib.request` for model calls, `argparse` for the CLI, `logging` for the log
+layer, `unittest` for the tests (no pytest needed). The Financial Firewall in
+`../BackEnd-Supervisor` has **zero** dependencies.
 
 ### Why the pins are exact
 

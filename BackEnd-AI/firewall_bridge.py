@@ -65,6 +65,7 @@ if SUPERVISOR_DIR.is_dir() and str(SUPERVISOR_DIR) not in sys.path:
 from intent_to_purchase import (  # noqa: E402  (path set up above)
     AppConfig,
     IntentToPurchasePipeline,
+    StructuredIntent,
     build_grand_total,
     build_llm,
     build_request_result,
@@ -75,7 +76,9 @@ from intent_to_purchase import (  # noqa: E402  (path set up above)
 from logging_setup import glyph, setup_logging, stage as log_stage  # noqa: E402
 
 #: Where the bridge keeps its trusted merchant directory and reports.
-DEFAULT_MERCHANT_DIR = HERE / "BackEnd-Supervisor" / "samples" / "merchant_directory.json"
+#: The directory lives beside the supervisor's own catalogue, in the sibling
+#: package - not under BackEnd-AI.
+DEFAULT_MERCHANT_DIR = SUPERVISOR_DIR / "samples" / "merchant_directory.json"
 DEFAULT_REPORT_DIR = HERE / "logs"
 
 #: Authorization defaults. The firewall considers a plan's OWN total, so these
@@ -437,7 +440,9 @@ def build_final_report(
 def run(
     requests: Sequence[str],
     *,
+    intents: Optional[Sequence[StructuredIntent]] = None,
     options: int = 3,
+    max_results: int = 10,
     keep: int = 2,
     config: Optional[AppConfig] = None,
     dry_run: bool = False,
@@ -456,6 +461,8 @@ def run(
     configured API (used by the tests, which must never spend credit).
     """
     out = stream or sys.stdout
+    if intents is not None and len(intents) != len(requests):
+        raise ValueError("intents must contain exactly one StructuredIntent per request")
     config = config or load_config()
     inventory = default_inventory_path(config)
     products = load_products(inventory)
@@ -469,9 +476,12 @@ def run(
     results = []
     for index, request in enumerate(requests, 1):
         pipeline = IntentToPurchasePipeline(
-            products, llm=llm, top_n=options, progress=False,
+            products, llm=llm, top_n=options, max_results=max_results, progress=False,
         )
-        response = pipeline.run(request)
+        response = pipeline.run(
+            request,
+            intent_override=intents[index - 1] if intents is not None else None,
+        )
         results.append(build_request_result(index, request, response))
     base_report = build_grand_total(results, session="bridge", llm=llm)
     base_json = json.loads(base_report.model_dump_json())
@@ -521,6 +531,29 @@ def run(
         daily_spent=daily_spent,
     )
     final = build_final_report(base_json, outcome, keep=keep)
+    selected_by_request = outcome.get("selected", {})
+
+    def halt_for(result: Any) -> Dict[str, Any]:
+        decision = outcome.get("priority", {}).get(result.request_id)
+        reason = result.stop_reason or getattr(
+            decision, "reason", "The Financial Firewall did not approve a purchase."
+        )
+        decision_status = getattr(getattr(decision, "status", None), "value", "")
+        status = result.status
+        if not result.stop_reason and decision_status:
+            status = "DENIED_BY_FIREWALL" if decision_status == "DENY" else decision_status
+        return {
+            "request_id": result.request_id,
+            "request": result.request,
+            "status": status,
+            "reason": reason,
+        }
+
+    final["halts"] = [
+        halt_for(result)
+        for result in base_report.results
+        if not selected_by_request.get(result.request_id)
+    ]
     final["merchant_directory"] = stats
     final["agent_report"] = report_path.name
 

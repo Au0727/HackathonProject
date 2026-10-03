@@ -39,6 +39,7 @@ from intent_to_purchase import (
     SECURITY_AUDIT_SCHEMA,
     SECURITY_AUDIT_SYSTEM_PROMPT,
     ComplianceAuditor,
+    FallbackLLM,
     IntentToPurchasePipeline,
     LoggingLLM,
     OfflineRuleBasedLLM,
@@ -480,10 +481,16 @@ class TestOutputContract(unittest.TestCase):
         self.assertIsInstance(payload["selections"], list)
 
     def test_pipeline_is_deterministic_end_to_end(self):
+        """The decisions must be identical; only the timing numbers may differ."""
         request = "Find me a Kensington wireless mouse, budget $800 total."
-        first = build_pipeline().run_json(request)
-        second = build_pipeline().run_json(request)
-        self.assertEqual(first, second)
+
+        def decision_payload():
+            payload = json.loads(build_pipeline().run_json(request))
+            # Wall-clock timings are the only non-deterministic field.
+            payload.pop("timings_ms", None)
+            return payload
+
+        self.assertEqual(decision_payload(), decision_payload())
 
     def test_every_rejection_carries_a_rule_id(self):
         response = build_pipeline().run(
@@ -727,8 +734,28 @@ class TestProviderWiring(_ScratchConfigTestCase):
     def test_default_llm_prefers_deepseek_when_its_key_is_set(self):
         os.environ["DEEPSEEK_API_KEY"] = "sk-test"
         client = default_llm(config_path=self.repo_root / ".tmpllm-absent.json")
-        self.assertIsInstance(client, OpenAICompatibleLLM)
+        self.assertIsInstance(client, FallbackLLM)
         self.assertEqual(client.provider, "deepseek")
+
+    def test_api_failure_switches_to_offline_parser(self):
+        class UnavailableClient:
+            provider = "deepseek"
+            model = "test-model"
+
+            def __init__(self):
+                self.called = False
+
+            def complete_json(self, system, user, schema, *, temperature=0.0):
+                self.called = True
+                raise ConnectionError("API unavailable")
+
+        primary = UnavailableClient()
+        client = FallbackLLM(primary)
+        parsed = client.complete_json("", "Find a wireless mouse under HK$300", INTENT_SCHEMA)
+        self.assertTrue(primary.called)
+        self.assertEqual(client.provider, "offline")
+        self.assertIn("mouse", parsed["product_keywords"])
+        self.assertEqual(parsed["max_base_price"], 300.0)
 
     def test_default_llm_is_offline_without_any_key(self):
         self.assertIsInstance(

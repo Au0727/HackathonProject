@@ -30,7 +30,8 @@ dist/
 # Run logs contain prompts and model replies; agent reports are derived data.
 **/logs/
 *.log
-BackEnd-AI/BackEnd-Supervisor/samples/merchant_directory.json
+# Generated beside the supervisor's own catalogue, in the sibling package.
+BackEnd-Supervisor/samples/merchant_directory.json
 firewall_state.json
 blacklist.json
 audit.jsonl
@@ -39,8 +40,10 @@ audit.jsonl
 # Local scratch and tooling
 # ===========================================================================
 .piptmp/
+.pipcheck/
 .wheels/
 .testtmp/
+.tmpbridge-*
 .tmpcfg-*
 .tmpllm-*
 .tmplog-*

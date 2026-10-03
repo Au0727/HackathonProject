@@ -1014,6 +1014,80 @@ class OpenAICompatibleLLM:
 LLM = OpenAICompatibleLLM
 
 
+class FallbackLLM:
+    """Use the configured API until it fails, then continue with local rules."""
+
+    def __init__(self, primary: LLMClient) -> None:
+        self.primary = primary
+        self.offline = OfflineRuleBasedLLM()
+        self._using_offline = False
+
+    @property
+    def provider(self) -> str:
+        return "offline" if self._using_offline else getattr(self.primary, "provider", "api")
+
+    @property
+    def model(self) -> str:
+        return (
+            getattr(self.offline, "model", "rule-based")
+            if self._using_offline
+            else getattr(self.primary, "model", type(self.primary).__name__)
+        )
+
+    @property
+    def _last_system_prompt(self) -> str:
+        return getattr(self._active_client, "_last_system_prompt", "")
+
+    @property
+    def _last_raw_content(self) -> str:
+        return getattr(self._active_client, "_last_raw_content", "")
+
+    @property
+    def _last_usage(self) -> Dict[str, Any]:
+        return getattr(self._active_client, "_last_usage", {})
+
+    @property
+    def _active_client(self) -> LLMClient:
+        return self.offline if self._using_offline else self.primary
+
+    def complete_json(
+        self,
+        system: str,
+        user: str,
+        schema: Dict[str, Any],
+        *,
+        temperature: float = 0.0,
+    ) -> Dict[str, Any]:
+        if self._using_offline:
+            return self.offline.complete_json(
+                system, user, schema, temperature=temperature
+            )
+        try:
+            return self.primary.complete_json(
+                system, user, schema, temperature=temperature
+            )
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            ConnectionError,
+            OSError,
+            RuntimeError,
+            ValueError,
+            KeyError,
+            IndexError,
+            TypeError,
+        ) as exc:
+            log.warning(
+                "%s API unavailable (%s); switching to deterministic offline mode",
+                self.provider,
+                type(exc).__name__,
+            )
+            self._using_offline = True
+            return self.offline.complete_json(
+                system, user, schema, temperature=temperature
+            )
+
+
 def default_llm(
     config: Optional[AppConfig] = None,
     config_path: Optional[Path] = None,
@@ -1034,7 +1108,7 @@ def default_llm(
         return OfflineRuleBasedLLM()
     if config.has_credentials():
         try:
-            return OpenAICompatibleLLM(config=config)
+            return FallbackLLM(OpenAICompatibleLLM(config=config))
         except (RuntimeError, ValueError) as exc:  # pragma: no cover
             log.warning("falling back to offline LLM: %s", exc)
     elif config.has_placeholder_key():
@@ -1051,9 +1125,16 @@ def default_llm(
         )
         if env_provider:
             try:
-                return OpenAICompatibleLLM(provider=env_provider, config=config)
+                return FallbackLLM(
+                    OpenAICompatibleLLM(provider=env_provider, config=config)
+                )
             except (RuntimeError, ValueError) as exc:  # pragma: no cover
                 log.warning("falling back to offline LLM: %s", exc)
+        else:
+            log.warning(
+                "No DeepSeek/OpenAI API credentials configured; "
+                "using the deterministic offline model"
+            )
     return OfflineRuleBasedLLM()
 
 
@@ -2174,7 +2255,12 @@ class IntentToPurchasePipeline:
         return tracker.summary() if tracker is not None else ""
 
     # -- full run ----------------------------------------------------------
-    def run(self, request: str) -> PurchaseResponse:
+    def run(
+        self,
+        request: str,
+        *,
+        intent_override: Optional[StructuredIntent] = None,
+    ) -> PurchaseResponse:
         audit_log: List[str] = []
         timings: Dict[str, float] = {}
         run_started = time.perf_counter()
@@ -2185,16 +2271,22 @@ class IntentToPurchasePipeline:
             return elapsed
 
         # --- Stage 1 ---
-        self._progress(f"stage 1/4  interpreting request: {request!r}")
-        started = time.perf_counter()
-        intent = self.extract_intent(request)
-        stage1_ms = mark("stage1_intent", started)
-        self._progress(
-            f"stage 1/4  done in {stage1_ms:.0f} ms {glyph('arrow')} "
-            f"keywords={intent.product_keywords} "
-            f"cap={fmt(intent.effective_cap())} "
-            f"brands={intent.preferred_brands or 'any'}"
-        )
+        if intent_override is None:
+            self._progress(f"stage 1/4  interpreting request: {request!r}")
+            started = time.perf_counter()
+            intent = self.extract_intent(request)
+            stage1_ms = mark("stage1_intent", started)
+            self._progress(
+                f"stage 1/4  done in {stage1_ms:.0f} ms {glyph('arrow')} "
+                f"keywords={intent.product_keywords} "
+                f"cap={fmt(intent.effective_cap())} "
+                f"brands={intent.preferred_brands or 'any'}"
+            )
+        else:
+            intent = intent_override.model_copy()
+            if request and not intent.raw_request:
+                intent.raw_request = request
+            audit_log.append("STAGE 1 intent: supplied validated StructuredIntent")
         audit_log.append(f"STAGE 1 intent: keywords={intent.product_keywords}, "
                          f"max_total_cap={fmt(intent.effective_cap())}, "
                          f"preferred_brands={intent.preferred_brands}")

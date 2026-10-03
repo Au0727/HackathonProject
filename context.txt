@@ -1,0 +1,347 @@
+================================================================================
+CONTEXT / HANDOFF DOCUMENT
+Shopping Agent + Financial Firewall (hackathon: "Give a Machine a Wallet")
+================================================================================
+Written: 2026-10-03 (Asia/Hong Kong, UTC+08:00)
+Purpose: transfer this work to another AI agent without re-deriving it.
+
+Read this whole file before editing. Sections 2, 6 and 9 contain hard
+constraints and unresolved issues that will cause silent damage if ignored.
+
+--------------------------------------------------------------------------------
+1. WHAT THE PROJECT IS
+--------------------------------------------------------------------------------
+The brief: design a delegated shopping agent that enforces a spending mandate.
+Chosen scope: a household budget-holder ("Mei") delegates recurring household
+purchases to an agent she does not trust with unlimited reach.
+
+The system is TWO cooperating components:
+
+  natural language -> [ SHOPPING AGENT ] -> up to 3 ranked candidates
+                                                |
+                                                v
+                     [ FINANCIAL FIREWALL ]  (no LLM in this path)
+                                                |
+                                                v
+                                        recommended purchase JSON
+
+  Agent (BackEnd-AI)              Firewall (BackEnd-Supervisor)
+  ---------------------------------------------------------------
+  Question: what is worth buying?  Is this purchase authorized?
+  Method:   LLM parse, search,     Deterministic rules only.
+            ranking.               No model in the path.
+  Output:   up to 3 ranked options APPROVE / ASK / DENY per plan
+  Authority: the user's mandate    the user's authorization limits
+
+Neither duplicates the other. The agent never decides whether money may move.
+The firewall never looks at the product catalogue.
+
+The final user-facing deliverable is: natural language in, a JSON document with
+the recommended purchases out, printed on stdout.
+
+--------------------------------------------------------------------------------
+2. HARD CONSTRAINTS - READ BEFORE EDITING
+--------------------------------------------------------------------------------
+2.1 STDOUT CONTRACTS (do not break these)
+    * main.py                 -- stdout is ONLY the JSON. Progress -> stderr.
+    * firewall_bridge.py      -- with --json-only, stdout is ONLY the JSON.
+    * intent_to_purchase.py   -- with --json, stdout is ONLY the JSON.
+    Anything else printed to stdout corrupts a pipe. This has already broken
+    once (fixed); do not regress it.
+
+2.2 A REAL API KEY IS PRESENT IN config.local.json
+    BackEnd-AI/config.local.json currently holds a LIVE DeepSeek key
+    (prefix "sk-dca..."). It has been re-added by other sessions several times
+    after being cleared. Consequences:
+      * Any run WITHOUT --offline makes real, billable API calls.
+      * Any test that reaches the LLM layer without forcing offline becomes a
+        live call. This already happened twice (see 6.2).
+    ALWAYS pass --offline / offline=True unless you specifically intend to spend
+    credit. Never print the key. Never paste config.local.json anywhere.
+    config.local.json is git-ignored (*.local.json) and must stay that way.
+
+2.3 DETERMINISM IS A CLAIMED PROPERTY
+    results and grand_total must be identical across runs when offline.
+    Only generated_at and the timestamped agent_report filename may vary.
+    If you add a field containing time, randomness, a set, or a dict iteration
+    order, you break this. See section 7.
+
+2.4 THE FIREWALL IS NOT OURS TO CHANGE (in normal work)
+    BackEnd-Supervisor is a separate component with its own documented contract
+    (read BackEnd-Supervisor/README.md). Consume it through its public API:
+      * firewall.adapters.ShoppingReportAdapter   (report parsing)
+      * firewall.adapters.MerchantCatalog         (trusted risk data)
+      * firewall.adapters.CatalogMerchantRiskProvider
+      * firewall.authorization_engine.AuthorizationEngine (.evaluate_plan,
+        .evaluate_plans)
+      * firewall.models, firewall.money, firewall.audit
+    Do not re-implement its parsing or rules.
+
+--------------------------------------------------------------------------------
+3. FILE INVENTORY (verified 2026-10-03)
+--------------------------------------------------------------------------------
+Workspace root: C:\Users\Bill Sun\Documents\deepseek-harness\default-workspace
+
+  .git/                      git repo, exists, ZERO commits so far
+  .gitignore                 covers secrets, logs, generated files, scratch
+  BackEnd-AI/                OUR code
+  BackEnd-Supervisor/        the Financial Firewall (peer component, 158 tests)
+  FrontEnd/                  a Vite/TypeScript app - NOT WRITTEN BY US, do not
+                             touch; another session owns it
+  .idea/ .piptmp/ .testtmp/ .tmp-grand-logs/ .wheels/  scratch, git-ignored
+
+BackEnd-AI/ contents:
+  main.py                      107 lines   entry point: NL in, JSON out
+  intent_to_purchase.py      ~2850 lines   the agent (4 stages, models, LLM)
+  firewall_bridge.py          ~590 lines   joins agent to firewall, 3 -> 2
+  logging_setup.py             354 lines   console/file logging, redaction
+  test_intent_to_purchase.py   ~1390 lines 105 tests
+  test_firewall_bridge.py      ~300 lines  21 tests
+  README.md                    668 lines   full algorithm documentation
+  requirements.txt             one direct dep (pydantic), pinned
+  config.json                  non-secret settings (committed)
+  config.local.json            API KEY (git-ignored)
+  wireless_mouse_ecosystem.json  200-row product inventory
+  lib/                         vendored pydantic (see 5.2)
+  logs/                        agent reports, run logs, LLM JSONL (ignored)
+
+BackEnd-Supervisor/ (peer):
+  firewall/ ... types, money, models, rating, messages, validation, rules/,
+               rule_engine, authorization_engine, blacklist, audit/,
+               transaction/state_machine, adapters/, ui, cli
+  samples/merchant_catalog.json             10 product->merchant mappings
+  samples/merchant_directory.json           GENERATED by us (git-ignored)
+  samples/optimal_selection_sample.json     upstream-shaped example report
+  tests/                                    158 tests
+  README.md                                 its contract; read it
+
+--------------------------------------------------------------------------------
+4. HOW TO RUN
+--------------------------------------------------------------------------------
+  cd BackEnd-AI
+
+  # the deliverable
+  pip install -r requirements.txt
+  python main.py --offline "Find me a Kensington wireless mouse under $800 total."
+
+  # pipe-safe
+  python main.py --offline --quiet "..." | python -m json.tool
+
+  # firewall denies everything (demonstrates the stop)
+  python main.py --offline --max-per-transaction 50 "..."
+
+  # tests
+  python test_intent_to_purchase.py       # 105, ~0.2s, offline
+  python test_firewall_bridge.py          # 21,  ~0.1s, offline
+  cd ../BackEnd-Supervisor
+  python -m unittest discover -s tests -t .   # 158, see 6.4 for sandbox errors
+
+Useful flags on main.py:
+  --options N   candidates the agent ranks (default 3)
+  --keep N      recommendations to return (default 2)
+  --offline     force the deterministic local model, never touch the network
+  --quiet       suppress the stderr note
+  --max-per-transaction / --max-daily-spend / --confirmation-threshold
+  --daily-spent
+
+PowerShell gotcha: $300 is a variable. Use single quotes or escape as `$300.
+
+--------------------------------------------------------------------------------
+5. ARCHITECTURE IN DETAIL
+--------------------------------------------------------------------------------
+5.1 THE SIX STAGES (one request)
+  [1] INTENT EXTRACTION   LLM + JSON schema -> StructuredIntent
+                          (product_keywords, max_base_price, max_total_cap,
+                           preferred_brands, parse_notes)
+  [2] SEARCH              keyword match with IDF weighting + token boundaries,
+                          then cost math: total = price + shipping_fee
+  [3] COMPLIANCE GATE     R-FIN-01 budget cap, R-SEC-01 trust audit
+  [4] RANKING             deterministic selection -> up to --options candidates
+  [5] AUTHORIZATION       firewall rules per plan -> APPROVE | ASK | DENY
+  [6] REDUCTION           keep the best --keep approved -> final JSON
+
+5.2 KEY DESIGN DECISIONS (and why - do not "simplify" these away)
+  * MONEY IS Decimal, NEVER float. Coerced as Decimal(str(x)) at the model
+    boundary. An agent one cent wrong on a cap is an agent that overspends.
+    Decimal(3892.2) imports binary error; Decimal("3892.2") does not.
+    Money is SERIALISED AS A STRING ("389.92") for the same reason.
+  * THE FINANCIAL STOP IS DETERMINISTIC. An LLM may ADD a security finding; it
+    can never CLEAR a budget breach. The LLM auditor is advisory only.
+  * CAP SEMANTICS: "under $X total" (also all-in/delivered/including shipping)
+    -> max_total_cap on price+shipping. Any other wording -> max_base_price.
+    effective_cap() returns whichever was actually expressed.
+  * IDF WEIGHTING: rarity = 1 + (total / (1 + hits)); field weights
+    name:5 brand:4 description:1; expansion synonyms x0.6. Without it, a brand
+    bonus floats an accessory above the requested product type (real bug fixed).
+  * TOKEN-BOUNDARY MATCHING: keyword "mouse" must NOT match "Mousepad".
+  * BRAND IS A TIEBREAKER, never part of the relevance score.
+  * BUNDLE PROMOTIONS ARE LOGGED, NEVER APPLIED. They are conditional; applying
+    one would compare a hypothetical against a real price.
+  * TAX IS NOT MODELLED. total_cost = price + shipping_fee.
+  * PRODUCT TEXT IS DATA, NEVER INSTRUCTION. Nine injection families detected by
+    normalised pattern (zero-width characters stripped).
+  * PRICE ANOMALIES ARE CONSERVATIVE: a false positive blocks a purchase the
+    user legitimately wanted. Thresholds: shipping > 3x price; premium
+    descriptor AND price < 15% of median (suppressed for component listings).
+  * A MISSING MERCHANT MAPPING IS A DENIAL, not a guess
+    (MERCHANT_RISK_DATA_UNAVAILABLE).
+
+5.3 THE BRIDGE'S TWO EVALUATION PATHS (deliberate, documented in README 7.3)
+    The firewall's priority engine (evaluate_plans) walks plans in rank order
+    and STOPS AT THE FIRST APPROVE - ranks 2 and 3 are never evaluated. That is
+    the right answer to "should this purchase go ahead?" but yields ONE plan.
+    We want TWO authorized choices, so the bridge ALSO calls the per-plan rule
+    pipeline (evaluate_plan) for every candidate and keeps the approved ones.
+    Same rule set, different selection policy. Both are reported:
+      best_options          = the authorized choices we return
+      results[].firewall    = the priority engine's own single decision
+    If strict "first APPROVE wins" is needed, read results[].firewall instead.
+
+5.4 MERCHANT RISK IS NEVER READ FROM THE REPORT (firewall rule)
+    The bridge maintains a trusted directory. It STARTS FROM the supervisor's
+    merchant_catalog.json, PRESERVES every existing record, and assigns each
+    unmapped product to one merchant per brand ("brand-kensington", ...).
+    Scores are DETERMINISTIC (derived from ids) because the firewall promises
+    identical decisions for identical inputs; a randomised score would break it.
+    THE RISK BANDS ARE ILLUSTRATIVE VALUES WE AUTHORED - not observed data.
+    Say so if asked. Never present them as evidence.
+
+--------------------------------------------------------------------------------
+6. CURRENT STATUS AND KNOWN ISSUES
+--------------------------------------------------------------------------------
+6.1 VERIFIED WORKING (re-run these before trusting anything)
+      python test_intent_to_purchase.py   -> 105 tests, OK (1 skipped)
+      python test_firewall_bridge.py      -> 21 tests, OK
+      python main.py --offline --quiet "..." -> exit 0, pure JSON on stdout
+      python main.py --offline --max-per-transaction 50 "..." -> 0 options
+
+6.2 THE API-KEY RECURRENCE PROBLEM - HIGHEST-RISK ITEM
+    A live DeepSeek key keeps reappearing in BackEnd-AI/config.local.json. Each
+    time, anything not explicitly forced offline silently becomes a live call:
+      * an early end-to-end run cost ~7,311 tokens (5 calls, 26s)
+      * a buggy --dry-run fell through and spent 521 more tokens
+      * test_firewall_bridge.py took 10s per invocation until run(offline=True)
+        was threaded through
+      * test_main_json_stdout_... took 14.3s until --offline was passed
+    Lesson: GREEN TESTS DO NOT PROVE OFFLINE. Check the wall-clock time, or
+    read logs/llm-*.jsonl and count llm_call records.
+    Mitigations now in place: --offline on both CLIs, allow_network=False on
+    default_llm/build_llm, offline=True on the bridge, offline=True in tests.
+
+6.3 FIXED DURING THE LAST SESSION (context for why things look as they do)
+    * Merchant directory was written to BackEnd-AI/BackEnd-Supervisor/samples/
+      instead of ../BackEnd-Supervisor/samples/. Your humble author then deleted
+      BackEnd-AI/BackEnd-Supervisor/ recursively - and test_firewall_bridge.py
+      WAS INSIDE IT, untracked in git, so it was LOST and had to be rewritten
+      from the conversation record. It is restored (21 tests now, one of which
+      regression-tests this path bug).
+      DEFAULT_MERCHANT_DIR now = SUPERVISOR_DIR / "samples" /
+      "merchant_directory.json". .gitignore was corrected to match.
+      LESSON: never recursively delete a path you have not listed first, and
+      commit work before cleaning up.
+    * test_pipeline_is_deterministic_end_to_end compared run_json byte-for-byte,
+      but timings_ms was added to PurchaseResponse, so it failed. It now pops
+      timings_ms before comparing - the decisions are what must be identical.
+
+6.4 PRE-EXISTING, NOT OUR BUG: 5 errors in the SUPERVISOR's own 158 tests
+    They write to %TEMP%, which this sandbox denies (PermissionError on
+    AppData\Local\Temp\...). 15 permission errors, ZERO assertion failures.
+    Do not "fix" our code for this. They should pass on a normal machine.
+
+6.5 ENVIRONMENT QUIRKS THAT WASTE TIME
+    * `pip install` FAILS here: the sandbox blocks pip's temp/cache writes
+      (PermissionError on ...\dsh-XXXX\pip-unpack-...). Workarounds used:
+      download wheels with urllib and extract with zipfile into lib/, or set
+      TMPDIR into the workspace (still may fail on the metadata write).
+    * Writes into NEWLY CREATED SUBDIRECTORIES are DENIED, though writes to the
+      workspace root succeed. Tests therefore put scratch files in the workspace
+      root under a unique prefix (.tmpcfg-*, .tmpllm-*, .tmpbridge-*) rather than
+      using tempfile. .testtmp/ and .piptmp/ are ancient leftovers that cannot
+      be deleted (stale handle) - both git-ignored.
+    * PowerShell strips double quotes from pwsh commands; the harness also
+      injects a UTF8Encoding line into some commands. Prefer single quotes, or
+      write a small .py file and run it, rather than long inline -c scripts.
+    * PowerShell `>` writes UTF-16 with a BOM, which breaks json.load. Use
+      `cmd /c "... > file"` or capture via subprocess with encoding="utf-8".
+    * Select-String on a pipe can make $LASTEXITCODE read 1 for a passing test.
+      Capture the real code with `python x.py > $null 2>&1; $LASTEXITCODE`.
+
+6.6 GIT STATE
+    * Repo exists, NO COMMITS yet. Most files are already STAGED.
+    * 16 junk paths (.wheels/, .tmp-grand-logs/, .idea/, ...) were staged
+      BEFORE .gitignore existed; they were unstaged. STAGED FILES OVERRIDE
+      .gitignore - if junk reappears in the index, `git reset -q HEAD -- <path>`.
+    * No secret is staged. Verify with:
+        git ls-files --cached | Select-String 'local\.json'
+      It must be empty.
+    * FrontEnd/ is untracked and belongs to another session.
+
+--------------------------------------------------------------------------------
+7. DETERMINISM - EXACT TRUTH
+--------------------------------------------------------------------------------
+Claim precisely this, no more:
+  * With --offline, the recommended items and grand_total are identical on every
+    run. results and grand_total compare equal across runs.
+  * The DOCUMENT is not byte-identical: generated_at and the timestamped
+    agent_report filename differ.
+  * With a live API key, the intent stage may rephrase and the answer can vary.
+    This was observed: the same request returned different products across runs.
+Stages and their determinism:
+  intent extraction  only offline (live LLM may rephrase)
+  search + ranking   YES (fixed sort keys; product_id breaks all ties)
+  compliance gate    YES (arithmetic + patterns, no model)
+  firewall rules     YES (no language model in the path at all)
+  merchant directory YES (scores derived from ids)
+
+--------------------------------------------------------------------------------
+8. EVIDENCE DISCIPLINE (this is a judged hackathon; fabrication is fatal)
+--------------------------------------------------------------------------------
+The brief says every rate, fee, cashback percentage or points value must be
+observed and timestamped, or it will be treated as fabrication. Current state:
+  * OBSERVED (Tier A): pydantic/firewall behaviour; the 200-row inventory;
+    8 genuine prompt injections in it (WM-012/045/078/102/135/156/172/190).
+  * OBSERVED elsewhere in this project: HK payment-rail facts from an earlier
+    research pass - e.g. SC Simply Cash 1.5% local-currency, HSBC Visa Signature
+    "up to 3.6%", Hang Seng enJoy thresholds/caps (expired 30 Apr 2026), ZA
+    StockBack 1% + 0.5% to 31 Oct 2026 with a 30,000/month cliff, FPS "does not
+    charge the merchants" (HKICL). These live in the conversation history, NOT
+    in this repo. Most official HK fee schedules are PDFs and were unreadable.
+  * AUTHORED BY US (must be labelled): merchant risk scores in
+    merchant_directory.json; the offline rule-based LLM; CATEGORY_SYNONYMS.
+  NOTHING ELSE MAY BE INVENTED. If asked for a rate we do not have, say so.
+
+--------------------------------------------------------------------------------
+9. RECOMMENDED NEXT STEPS (in priority order)
+--------------------------------------------------------------------------------
+1. COMMIT. The repo has zero commits and untracked work already got destroyed
+   once. Before anything else:
+     git add -A
+     git status                     # confirm no *.local.json, no logs/, no wheels
+     git commit -m "Shopping agent + Financial Firewall"
+2. DECIDE THE API-KEY POLICY with the human. Either clear config.local.json to
+   the placeholder "PUT-YOUR-DEEPSEEK-API-KEY-HERE", or accept live calls and
+   always pass --offline for demos/tests. Do not leave this ambiguous.
+3. WIRE THE FRONTEND, if wanted. FrontEnd/ is a Vite/TS app with its own
+   BACKEND_INTEGRATION.md. It is not ours; coordinate before touching it. The
+   natural seam is main.py's stdout JSON.
+4. IF TIME ALLOWS: make the offline path testable by construction - e.g. have
+   the tests assert `type(llm.inner) is OfflineRuleBasedLLM` so a future live
+   key cannot silently turn a test into a billable call.
+
+--------------------------------------------------------------------------------
+10. WHAT NOT TO DO
+--------------------------------------------------------------------------------
+* Do not print anything but JSON to stdout on the JSON paths.
+* Do not replace Decimal with float anywhere in the money path.
+* Do not let the LLM clear a budget breach.
+* Do not read merchant risk from the report - it is explicitly forbidden by the
+  firewall's contract.
+* Do not present the authored risk bands as observed data.
+* Do not re-implement the firewall's report parsing or rules.
+* Do not regenerate or delete files with a recursive delete without listing the
+  target first (see 6.3). Commit before cleaning up.
+* Do not assume a passing test suite means no network access. Check the timing.
+
+================================================================================
+END OF HANDOFF
+================================================================================

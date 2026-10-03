@@ -7,6 +7,8 @@
 # Direct dependency
 # ---------------------------------------------------------------------------
 pydantic==2.13.5
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
 
 # ---------------------------------------------------------------------------
 # Transitive dependencies (pulled in by pydantic; pinned for reproducibility)
@@ -21,9 +23,10 @@ typing-inspection==0.4.4
 # ===========================================================================
 #
 # WHAT THIS PROJECT ACTUALLY NEEDS
-#   Exactly one direct third-party dependency: pydantic. Everything else is the
-#   Python standard library - urllib.request for the HTTP call, argparse for the
-#   CLI, logging for the log layer, unittest for the tests (no pytest needed).
+#   The CLI needs pydantic. The HTTP server additionally needs FastAPI and
+#   Uvicorn. Everything else is the Python standard library - urllib.request
+#   for the model HTTP call, argparse for the CLI, logging for the log layer,
+#   unittest for the tests (no pytest needed).
 #   The Financial Firewall in ../BackEnd-Supervisor has ZERO dependencies.
 #
 # WHY THE VERSIONS ARE PINNED EXACTLY
