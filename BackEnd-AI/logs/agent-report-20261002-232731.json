@@ -1,0 +1,93 @@
+{
+  "report_type": "optimal_selection",
+  "generated_at": "2026-10-02T23:27:31+0800",
+  "session": "bridge",
+  "model_backend": "OfflineRuleBasedLLM",
+  "model_name": "OfflineRuleBasedLLM",
+  "currency": "HKD",
+  "requests_made": 1,
+  "requests_with_options": 1,
+  "results": [
+    {
+      "request_id": "REQ-001",
+      "request": "Find me a Kensington wireless mouse under  total.",
+      "status": "OK",
+      "cap_enforced": null,
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [
+        "Kensington"
+      ],
+      "considered": 10,
+      "refused": 0,
+      "stop_reason": null,
+      "best_options": [
+        {
+          "rank": 1,
+          "product_id": "WM-022",
+          "product_name": "Kensington BioFit Mouse (Elite, Matte Black)",
+          "brand": "Kensington",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "389.92",
+          "shipping_fee": "0.00",
+          "total_cost": "389.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "WITHIN_BUDGET_AND_PREFERRED_BRAND",
+          "reason": "Chosen because total cost 389.92 is within cap and brand 'Kensington' matches the preferred list"
+        },
+        {
+          "rank": 2,
+          "product_id": "WM-020",
+          "product_name": "Kensington BioFit Mouse (Wireless Ultra, Off-White)",
+          "brand": "Kensington",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "523.24",
+          "shipping_fee": "93.60",
+          "total_cost": "616.84",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "WITHIN_BUDGET_AND_PREFERRED_BRAND",
+          "reason": "Chosen because total cost 616.84 is within cap and brand 'Kensington' matches the preferred list"
+        },
+        {
+          "rank": 3,
+          "product_id": "WM-055",
+          "product_name": "MX BioFit Mouse (Elite, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "116.92",
+          "shipping_fee": "0.00",
+          "total_cost": "116.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "NO_CAP_STATED_CHEAPEST_RELEVANT",
+          "reason": "Chosen as the cheapest relevant result at 116.92; the user stated no cap"
+        }
+      ],
+      "totals": {
+        "items_selected": 3,
+        "quantity": 3,
+        "currency": "HKD",
+        "goods_subtotal": "1030.08",
+        "shipping_total": "93.60",
+        "grand_total": "1123.68"
+      },
+      "elapsed_ms": 16.3
+    }
+  ],
+  "grand_total": {
+    "items_selected": 3,
+    "quantity": 3,
+    "currency": "HKD",
+    "goods_subtotal": "1030.08",
+    "shipping_total": "93.60",
+    "grand_total": "1123.68"
+  },
+  "llm_usage": "11 call(s), 0+0=0 tokens"
+}

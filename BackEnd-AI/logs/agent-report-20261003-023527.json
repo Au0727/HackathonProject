@@ -1,0 +1,78 @@
+{
+  "report_type": "optimal_selection",
+  "generated_at": "2026-10-03T02:35:27+0800",
+  "session": "bridge",
+  "model_backend": "OpenAICompatibleLLM",
+  "model_name": "deepseek-flash",
+  "currency": "HKD",
+  "requests_made": 1,
+  "requests_with_options": 1,
+  "results": [
+    {
+      "request_id": "REQ-001",
+      "request": "Find me a Kensington wireless mouse under $800 total.",
+      "status": "OK",
+      "cap_enforced": "800.00",
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [
+        "Kensington"
+      ],
+      "considered": 10,
+      "refused": 8,
+      "stop_reason": null,
+      "best_options": [
+        {
+          "rank": 1,
+          "product_id": "WM-055",
+          "product_name": "MX BioFit Mouse (Elite, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "116.92",
+          "shipping_fee": "0.00",
+          "total_cost": "116.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 116.92 is within cap of 800.00 and no preferred brand survived"
+        },
+        {
+          "rank": 2,
+          "product_id": "WM-039",
+          "product_name": "MX BioFit Mouse (V2, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "709.42",
+          "shipping_fee": "0.00",
+          "total_cost": "709.42",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": "Buy 2 units to unlock 50% off the target item",
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 709.42 is within cap of 800.00 and no preferred brand survived"
+        }
+      ],
+      "totals": {
+        "items_selected": 2,
+        "quantity": 2,
+        "currency": "HKD",
+        "goods_subtotal": "826.34",
+        "shipping_total": "0.00",
+        "grand_total": "826.34"
+      },
+      "elapsed_ms": 81541.4
+    }
+  ],
+  "grand_total": {
+    "items_selected": 2,
+    "quantity": 2,
+    "currency": "HKD",
+    "goods_subtotal": "826.34",
+    "shipping_total": "0.00",
+    "grand_total": "826.34"
+  },
+  "llm_usage": "10 call(s), 3666+7927=11593 tokens"
+}

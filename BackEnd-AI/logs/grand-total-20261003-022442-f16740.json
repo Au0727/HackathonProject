@@ -1,0 +1,257 @@
+{
+  "report_type": "optimal_selection",
+  "generated_at": "2026-10-03T02:26:20+0800",
+  "session": "20261003-022442-f16740",
+  "model_backend": "OpenAICompatibleLLM",
+  "model_name": "deepseek-flash",
+  "currency": "HKD",
+  "requests_made": 5,
+  "requests_with_options": 4,
+  "results": [
+    {
+      "request_id": "REQ-001",
+      "request": "I need a Razer wireless mouse under $300 total.",
+      "status": "OK",
+      "cap_enforced": "300.00",
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [
+        "Razer"
+      ],
+      "considered": 10,
+      "refused": 9,
+      "stop_reason": null,
+      "best_options": [
+        {
+          "rank": 1,
+          "product_id": "WM-055",
+          "product_name": "MX BioFit Mouse (Elite, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "116.92",
+          "shipping_fee": "0.00",
+          "total_cost": "116.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 116.92 is within cap of 300.00 and no preferred brand survived"
+        }
+      ],
+      "totals": {
+        "items_selected": 1,
+        "quantity": 1,
+        "currency": "HKD",
+        "goods_subtotal": "116.92",
+        "shipping_total": "0.00",
+        "grand_total": "116.92"
+      },
+      "elapsed_ms": 7265.6
+    },
+    {
+      "request_id": "REQ-002",
+      "request": "Find me a Kensington wireless mouse, budget $800 total.",
+      "status": "OK",
+      "cap_enforced": "800.00",
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [
+        "Kensington"
+      ],
+      "considered": 10,
+      "refused": 8,
+      "stop_reason": null,
+      "best_options": [
+        {
+          "rank": 1,
+          "product_id": "WM-055",
+          "product_name": "MX BioFit Mouse (Elite, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "116.92",
+          "shipping_fee": "0.00",
+          "total_cost": "116.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 116.92 is within cap of 800.00 and no preferred brand survived"
+        },
+        {
+          "rank": 2,
+          "product_id": "WM-043",
+          "product_name": "MX BioFit Mouse (Wireless Ultra, Off-White)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "303.24",
+          "shipping_fee": "117.00",
+          "total_cost": "420.24",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 420.24 is within cap of 800.00 and no preferred brand survived"
+        }
+      ],
+      "totals": {
+        "items_selected": 2,
+        "quantity": 2,
+        "currency": "HKD",
+        "goods_subtotal": "420.16",
+        "shipping_total": "117.00",
+        "grand_total": "537.16"
+      },
+      "elapsed_ms": 53612.2
+    },
+    {
+      "request_id": "REQ-003",
+      "request": "I'm looking for a wireless mouse.",
+      "status": "OK",
+      "cap_enforced": null,
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [],
+      "considered": 10,
+      "refused": 6,
+      "stop_reason": null,
+      "best_options": [
+        {
+          "rank": 1,
+          "product_id": "WM-055",
+          "product_name": "MX BioFit Mouse (Elite, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "116.92",
+          "shipping_fee": "0.00",
+          "total_cost": "116.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "NO_CAP_STATED_CHEAPEST_RELEVANT",
+          "reason": "Chosen as the cheapest relevant result at 116.92; the user stated no cap"
+        },
+        {
+          "rank": 2,
+          "product_id": "WM-004",
+          "product_name": "MX BioFit Mouse (X, Space Gray)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "389.92",
+          "shipping_fee": "0.00",
+          "total_cost": "389.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": "Add 'USB-C Dongle' to unlock 15% off (item bundle)",
+          "decision_rule": "NO_CAP_STATED_CHEAPEST_RELEVANT",
+          "reason": "Chosen as the cheapest relevant result at 389.92; the user stated no cap"
+        }
+      ],
+      "totals": {
+        "items_selected": 2,
+        "quantity": 2,
+        "currency": "HKD",
+        "goods_subtotal": "506.84",
+        "shipping_total": "0.00",
+        "grand_total": "506.84"
+      },
+      "elapsed_ms": 56195.0
+    },
+    {
+      "request_id": "REQ-004",
+      "request": "I need a wireless mouse under $50 total.",
+      "status": "STOPPED",
+      "cap_enforced": "50.00",
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [],
+      "considered": 10,
+      "refused": 10,
+      "stop_reason": "STOPPED: Item WM-004 exceeds budget cap (389.92 > 50.00); also rejected: WM-013 (INVALID_OVER_BUDGET), WM-016 (INVALID_OVER_BUDGET), WM-020 (INVALID_OVER_BUDGET), WM-022 (INVALID_OVER_BUDGET), WM-039 (INVALID_OVER_BUDGET), +4 more",
+      "best_options": [],
+      "totals": {
+        "items_selected": 0,
+        "quantity": 0,
+        "currency": "HKD",
+        "goods_subtotal": "0.00",
+        "shipping_total": "0.00",
+        "grand_total": "0.00"
+      },
+      "elapsed_ms": 3528.1
+    },
+    {
+      "request_id": "REQ-005",
+      "request": "Show me a Dell or Lenovo wireless mouse under $2000.",
+      "status": "OK",
+      "cap_enforced": "2000.00",
+      "keywords": [
+        "wireless",
+        "mouse"
+      ],
+      "preferred_brands": [
+        "Dell",
+        "Lenovo"
+      ],
+      "considered": 10,
+      "refused": 7,
+      "stop_reason": null,
+      "best_options": [
+        {
+          "rank": 1,
+          "product_id": "WM-055",
+          "product_name": "MX BioFit Mouse (Elite, Graphite)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "116.92",
+          "shipping_fee": "0.00",
+          "total_cost": "116.92",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 116.92 is within cap of 2,000.00 and no preferred brand survived"
+        },
+        {
+          "rank": 2,
+          "product_id": "WM-043",
+          "product_name": "MX BioFit Mouse (Wireless Ultra, Off-White)",
+          "brand": "MX",
+          "description": "High-quality wireless product designed for optimal performance in ergonomic & productivity environments. Features long battery life, precise optical tracking, and ergonomic tactile feedback.",
+          "price": "303.24",
+          "shipping_fee": "117.00",
+          "total_cost": "420.24",
+          "currency": "HKD",
+          "quantity": 1,
+          "bundle_opportunity": null,
+          "decision_rule": "LOWEST_TOTAL_COST_WITHIN_BUDGET",
+          "reason": "Chosen because total cost 420.24 is within cap of 2,000.00 and no preferred brand survived"
+        }
+      ],
+      "totals": {
+        "items_selected": 2,
+        "quantity": 2,
+        "currency": "HKD",
+        "goods_subtotal": "420.16",
+        "shipping_total": "117.00",
+        "grand_total": "537.16"
+      },
+      "elapsed_ms": 74428.1
+    }
+  ],
+  "grand_total": {
+    "items_selected": 7,
+    "quantity": 7,
+    "currency": "HKD",
+    "goods_subtotal": "1464.08",
+    "shipping_total": "234.00",
+    "grand_total": "1698.08"
+  },
+  "llm_usage": "35 call(s), 12812+17673=30485 tokens"
+}

@@ -1,0 +1,8 @@
+{
+  "_comment": "PRIVATE. This file holds your API key. It is listed in .gitignore. Do not commit it, paste it into a chat, or share it.",
+  "llm": {
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "api_key": "sk-dca522c3f8c64c5bbc324066a3a29895"
+  }
+}
